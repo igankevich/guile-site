@@ -92,6 +92,13 @@
 (define (typeset-russian str)
   (regexp-replace str %russian-non-breaking-space-regex 1 "\u00A0"))
 
+(define (typeset-english str)
+  (set! str (regexp-substitute/global #f "1st" str 'pre "1<sup>st</sup>" 'post))
+  (set! str (regexp-substitute/global #f "2nd" str 'pre "2<sup>nd</sup>" 'post))
+  (set! str (regexp-substitute/global #f "3rd" str 'pre "2<sup>rd</sup>" 'post))
+  (set! str (regexp-substitute/global #f "([0-9]+)th" str 'pre 1 "<sup>th</sup>" 'post))
+  str)
+
 (define* (highlight-code kids #:key
                          (keywords '())
                          (keyword-characters "")
@@ -564,7 +571,17 @@
   (css #:init-keyword #:css #:accessor page-css #:init-value '())
   (js-head #:init-keyword #:js-head #:accessor page-js-head #:init-value '())
   (js-footer #:init-keyword #:js-footer #:accessor page-js-footer #:init-value '())
-  (fonts #:init-keyword #:fonts #:accessor page-fonts #:init-value '()))
+  (fonts #:init-keyword #:fonts #:accessor page-fonts #:init-value '())
+  (fields #:init-keyword #:fields #:accessor page-fields #:init-value '()))
+
+(define (page-set-field! ref name value)
+  (set! (page-fields ref) (assoc-set! (page-fields ref) name value)))
+
+(define (page-remove-field! ref name)
+  (set! (page-fields ref) (assoc-remove! (page-fields ref) name)))
+
+(define (page-field-ref ref name)
+  (assoc-ref (page-fields ref) name))
 
 (define (page-full-url site page)
   (string-append (site-url site) "/" (page-url page)))
@@ -595,12 +612,6 @@
 
 (define (page-input-file page)
   (car (page-input-files page)))
-
-(define (get-output-subdirectory path)
-  (let ((components (string-split path #\/)))
-    (if (string=? (car components) "src")
-      (string-join (drop-right! (cdr components) 1) "/")
-      (string-join components "/"))))
 
 (define (page-load input-file)
   (define name (basename input-file))

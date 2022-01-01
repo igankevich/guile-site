@@ -222,7 +222,7 @@
 
 (define (make-page-kernel site page)
   (define output-path
-    (string-append %output-directory "/"
+    (string-append (site-output-directory site) "/"
                    (let ((url (page-url page)))
                      (if (string-suffix? "/" url)
                        (string-append url "index.html")
@@ -268,30 +268,6 @@
   (map
     (lambda (name) (string-append path "/" name))
     (scandir path (lambda (name) (not (string-prefix? "." name))))))
-
-(define (make-symlink-kernel input-file)
-  (define output-file
-    (string-join
-      `(,%output-directory
-         ,(get-output-subdirectory input-file)
-         ,(basename input-file))
-      "/"))
-  (make <kernel>
-    #:name "symlink"
-    #:input-files `(,input-file)
-    #:output-files `(,output-file)
-    #:proc (lambda (kernel)
-             (define (symlink-exists? path)
-               (catch #t
-                 (lambda () (lstat path) #t)
-                 (lambda _ #f)))
-             (for-each
-               (lambda (input-file output-file)
-                 (mkdir-p (dirname output-file))
-                 (system* "ln" "-sfnr" input-file output-file))
-               (kernel-input-files kernel)
-               (kernel-output-files kernel))
-             #t)))
 
 ;; Deprecated. Use make-copy-kernels istead.
 (define (copy-assets)

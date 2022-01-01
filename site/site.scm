@@ -35,9 +35,22 @@
   (define current-year (strftime "%Y" (localtime (current-time))))
   (format #f "© ~a ~a" (years page-year current-year) (site-author site)))
 
+(define (get-output-subdirectory path)
+  (let ((components (string-split path #\/)))
+    (if (string=? (car components) "src")
+      (string-join (drop-right! (cdr components) 1) "/")
+      (string-join components "/"))))
+
+(define (site-file-output-directory site path)
+  (string-join
+    `(,(site-output-directory site)
+       ,(get-output-subdirectory path)
+       ,(basename path))
+    "/"))
+
 ;; export all symbols
 (module-map
- (lambda (sym var)
-   (module-export! (current-module) (list sym)))
- (current-module))
+  (lambda (sym var)
+    (module-export! (current-module) (list sym)))
+  (current-module))
 
