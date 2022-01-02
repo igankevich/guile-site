@@ -73,11 +73,15 @@
     "т\\.е\\."
     "это"
     ))
-(define %russian-non-breaking-space-regex
+(define %old-russian-non-breaking-space-regex
   (make-regexp (format #f "\\b(~a|~a|[а-яА-Я]{1,2})(\\s+)"
                        (string-join %russian-prepositions "|")
                        (string-join %russian-unions "|"))
                regexp/icase))
+(define %russian-non-breaking-space-regex
+  (make-regexp "\\b([а-яА-Я]{1,3})\\s+([а-яА-Я0-9])"))
+(define %russian-non-breaking-space-regex-pre
+  (make-regexp "\\s+(—)"))
 
 (define (russian-text? str)
   (regexp-exec %russian-regex str))
@@ -90,7 +94,9 @@
     str))
 
 (define (typeset-russian str)
-  (regexp-replace str %russian-non-breaking-space-regex 1 "\u00A0"))
+  (set! str (regexp-replace str %russian-non-breaking-space-regex 1 "\u00A0" 2))
+  (set! str (regexp-replace str %russian-non-breaking-space-regex-pre "\u00A0" 1))
+  str)
 
 (define (typeset-english str)
   (set! str (regexp-substitute/global #f "1st" str 'pre "1<sup>st</sup>" 'post))
@@ -512,32 +518,39 @@
 
 (define (page-tail/default site page)
   (define header
-    `(nav (@ (class "navbar navbar-expand-lg navbar-light bg-light"))
-          (a (@ (class "navbar-brand") (href ,(site-prefix/ site)))
-             (img (@ (src ,(site-prefix/ site "images/logo.svg"))
-                     (alt ,(site-description site)))))
-          ;;(h1 (@ (class "text-center pb-2"))
-          ;;          ,(site-description site))
-          (ul (@ (class "navbar-nav"))
-              ,@(map
-                  (lambda (directory)
-                    `(li (@ (class "nav-item"))
-                         (a (@ (class "nav-link")
-                               (href ,(site-prefix/ site (directory-url directory))))
-                            ,(directory-name directory))))
-                  (site-directories site)))))
+    `(nav 
+       (a (@ (href ,(site-prefix/ site)))
+          (img (@ (src ,(site-prefix/ site "images/logo.svg"))
+                  (alt ,(site-description site)))))
+       ;;(h1 (@ (class "text-center pb-2"))
+       ;;          ,(site-description site))
+       (ul ,@(map
+               (lambda (directory)
+                 `(li (@ (class "nav-item"))
+                      (a (@ (class "nav-link")
+                            (href ,(site-prefix/ site (directory-url directory))))
+                         ,(directory-name directory))))
+               (site-directories site)))))
   (define footer
     `((footer
-        (div (@ (class "text-muted text-center center"))
+        (div (@ (class "center"))
              (small
                (a (@ (rel "license")
                      (href "http://creativecommons.org/licenses/by-sa/4.0/"))
                   "CC-BY-SA 4.0 ")
                ,((page-copyright page) page))))
-      ,@(map
-          (lambda (path)
-            `(script (@ (defer "") (src ,(site-prefix/ site path)))))
-          (page-js-footer page))))
+      ,@(begin
+          (map
+            (lambda (x)
+              (cond
+                ((is-a? x <kernel>)
+                 (kernel-run x)
+                 (let ((path (car (kernel-output-files x))))
+                   `(script (@ (defer "") (src ,(site-prefix// site path))))))
+                (else
+                  `(script (@ (defer "") (src ,(site-prefix// site x))))
+                  )))
+            (page-js-footer page)))))
   `(body (@ (lang "ru"))
          ,header
          (article (@ (class "container-fluid"))

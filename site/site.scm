@@ -48,6 +48,8 @@
        ,(basename path))
     "/"))
 
+(define site-output-path site-file-output-directory)
+
 ;; export all symbols
 (module-map
   (lambda (sym var)

@@ -105,10 +105,10 @@
                       (lambda () (delete-file file))
                       (lambda _ #t)))
                   (kernel-output-files kernel))
-                (format #t "~a: ~a failed with exit code ~a\n"
+                (format #t "error: ~a: ~a failed with exit code ~a\n"
                         (kernel-name kernel) (kernel-output-files kernel) ret)))))
         (lambda (key . parameters)
-          (format #t "~a: ~a failed with error: ~a\n"
+          (format #t "error: ~a: ~a failed: ~a\n"
                   (kernel-name kernel) (kernel-output-files kernel)
                   (cons key parameters))))
       ;(format #t "~a: ~a is up to date\n" (kernel-name kernel) (kernel-output-files kernel))

@@ -187,7 +187,7 @@
 (define (make-robots-kernel site)
   (define output-path (string-append %output-directory "/robots.txt"))
   (make <kernel>
-    #:name "feeds"
+    #:name "robots"
     #:input-files '()
     #:output-files `(,output-path)
     #:proc (lambda (kernel)
