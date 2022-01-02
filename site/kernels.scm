@@ -119,6 +119,6 @@
 (define-public (make-js-kernels site directory)
   (map
     (lambda (file)
-      (define output-file (site-output-path file))
+      (define output-file (site-output-path site file))
       (make-uglify-js-kernel file output-file))
     (list-files directory)))
