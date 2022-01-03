@@ -184,6 +184,7 @@
 
 (define (post-process-sxml sxml site page)
   (define paragraph-number 0)
+  (define slide-number 0)
   (define (make-paragraph class tag . kids)
     (set! paragraph-number (+ 1 paragraph-number))
     (let ((name (format #f "~2,'0d" paragraph-number)))
@@ -200,10 +201,14 @@
       (sodipodi . "http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd")
       (inkscape . "http://www.inkscape.org/namespaces/inkscape")))
   (pre-post-order sxml
-    `((code . ,(lambda (tag . kids) `(,tag (@ (class "text-dark")) ,@kids)))
-      (comment . ,(lambda (tag . kids) `(span (@ (class "syntax-comment")) ,@kids)))
+    `((comment . ,(lambda (tag . kids) `(span (@ (class "syntax-comment")) ,@kids)))
       (keyword . ,(lambda (tag . kids) `(span (@ (class "syntax-keyword")) ,@kids)))
       (string . ,(lambda (tag . kids) `(span (@ (class "syntax-string")) ,@kids)))
+      (slide . ,(lambda (tag . kids)
+                  (set! slide-number (+ 1 slide-number))
+                  `(div (@ (class "slide") (id ,(format #f "slide-~a" slide-number)))
+                        (div (@ (class "slide-box"))
+                             ,@kids))))
       (scala . ,(lambda (tag . kids)
                   (define keywords
                     '("public" "private" "protected"
@@ -322,14 +327,12 @@
                         (text (if (>= (length kids) 2) (list-ref kids 1) "")))
                     (page-add-input-files page `(,(string-append "src/" path)))
                     (if (string-null? text)
-                      `(img (@ (class "rounded img-fluid image")
-                               (src ,(site-prefix/ site path))
+                      `(img (@ (src ,(site-prefix/ site path))
                                (alt ,(site-prefix/ site path))))
-                      `(figure (@ (class "text-center"))
-                               (img (@ (class "rounded img-fluid image")
-                                       (src ,(site-prefix/ site path))
+                      `(figure (@ (class "center"))
+                               (img (@ (src ,(site-prefix/ site path))
                                        (alt ,text)))
-                               (figcaption (@ (class "text-muted")) ,(cdr kids)))))))
+                               (figcaption ,(cdr kids)))))))
       (nbsp . ,(lambda (tag . kids) "\u00a0"))
       (emdash . ,(lambda (tag . kids) "\u00a0—"))
       (math . ,(lambda (tag . kids)
@@ -500,12 +503,18 @@
                                (href ,(site-prefix// site path)))))
                    (kernel-output-files kernel)))
             (page-css page)))
-      ;; preload css
-      ,@(map
-          (lambda (path)
-            `(script (@ (src ,(site-prefix/ site path)))))
-          (page-js-head page))
-      )
+      ;; JS
+      ,@(begin
+          (map
+            (lambda (x)
+              (cond
+                ((is-a? x <kernel>)
+                 (kernel-run x)
+                 (let ((path (car (kernel-output-files x))))
+                   `(script (@ (src ,(site-prefix// site path))))))
+                (else
+                  `(script (@ (src ,(site-prefix// site x)))))))
+            (page-js-head page))))
     site
     page))
 
@@ -553,8 +562,7 @@
             (page-js-footer page)))))
   `(body (@ (lang "ru"))
          ,header
-         (article (@ (class "container-fluid"))
-                  ,(post-process-sxml (page-content page) site page))
+         (article ,(post-process-sxml (page-content page) site page))
          ,@footer))
 
 (define-class <page> ()

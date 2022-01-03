@@ -48,6 +48,7 @@
     #:name "uglify-js"
     #:input-files `(,input-file)
     #:output-files `(,output-file ,(format #f "~a.map" output-file))
+    #:hash? #t
     #:proc (lambda (kernel)
              (define input-path (car (kernel-input-files kernel)))
              (define output-path (car (kernel-output-files kernel)))
@@ -122,3 +123,20 @@
       (define output-file (site-output-path site file))
       (make-uglify-js-kernel file output-file))
     (list-files directory)))
+
+(define-public (guix-build site . args)
+  (define args-hash (hash args 18446744073709551615))
+  (define cache-file (format #f "~a/.guix-build/~x" (site-output-directory site) args-hash))
+  (if (file-exists? cache-file)
+    (string-trim-both (call-with-input-file cache-file get-string-all))
+    (let* ((port (apply open-pipe* `(,OPEN_READ "guix" "build" ,@args)))
+           (output (string-trim-both (get-string-all port)))
+           (exit-code (status:exit-val (close-pipe port))))
+      (if (= exit-code 0)
+        (begin
+          (mkdir-p (dirname cache-file))
+          (call-with-output-file cache-file
+            (lambda (port) (display output port)))
+          output)
+        #f))))
+
