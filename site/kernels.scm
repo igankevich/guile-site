@@ -3,11 +3,21 @@
   #:use-module (ice-9 ftw)
   #:use-module (ice-9 popen)
   #:use-module (ice-9 textual-ports)
+  #:use-module (ice-9 pretty-print)
   #:use-module (oop goops)
   #:use-module (site kernel)
   #:use-module (site site)
+  #:use-module (srfi srfi-1)
   #:export (make-symlink-kernel
-             make-inkscape-kernel))
+             make-inkscape-kernel
+             make-webp-kernel
+             make-julia-mono-kernels
+             make-ubuntu-font-kernels
+             make-rsync-kernels
+             make-favicon-kernel))
+
+; https://loqbooq.app/blog/add-favicon-modern-browser-guide
+(define-public %favicon-sizes '("16x16" "32x32" "48x48" "192x192" "167x167" "180x180"))
 
 (define-public (system-quiet* . rest)
   (define port (apply open-pipe* `(,OPEN_READ ,@rest)))
@@ -26,9 +36,12 @@
     (string-split dir #\/)))
 
 (define (list-files path)
-  (map
-    (lambda (name) (string-append path "/" name))
-    (scandir path (lambda (name) (not (string-prefix? "." name))))))
+  (define status (stat path))
+  (if (eq? (stat:type status) 'directory)
+    (map
+      (lambda (name) (string-append path "/" name))
+      (scandir path (lambda (name) (not (string-prefix? "." name)))))
+    `(,path)))
 
 (define-public (make-minify-kernel input-file output-file)
   (make <kernel>
@@ -41,6 +54,7 @@
              (define output-path (car (kernel-output-files kernel)))
              (mkdir-p (dirname output-path))
              (copy-file input-path output-path)
+             (chmod output-path #o0644)
              (system-quiet* "css-html-js-minify" "--quiet" "--overwrite" output-path))))
 
 (define-public (make-uglify-js-kernel input-file output-file)
@@ -76,22 +90,47 @@
                (kernel-output-files kernel))
              #t)))
 
-(define-public (make-favicon-kernel input-file output-file)
+(define* (make-favicon-kernel input-file #:optional (output-file #f)
+                              #:key (site #f))
+  (define output-prefix (site-output-directory site "favicon/"))
   (make <kernel>
     #:name "favicon"
     #:input-files `(,input-file)
-    #:output-files `(,output-file)
+    #:output-files `(,(string-append output-prefix "any.svg")
+                      ,(string-append output-prefix "any.ico")
+                      ,@(map (lambda (size) (string-append output-prefix size ".png"))
+                        %favicon-sizes))
     #:proc (lambda (kernel)
              (define input-path (car (kernel-input-files kernel)))
-             (define output-path (car (kernel-output-files kernel)))
-             (mkdir-p (dirname output-path))
+             (define tmp-path (site-output-directory site ".favicon.png"))
+             (define svg-path (first (kernel-output-files kernel)))
+             (define ico-path (second (kernel-output-files kernel)))
+             (mkdir-p (dirname tmp-path))
+             (system* "inkscape" "--without-gui"
+                      (format #f "--export-png=~a" tmp-path)
+                      input-path)
+             (mkdir-p (dirname svg-path))
+             ; svg
+             (system* "ln" "-sfnr" input-path svg-path)
+             ; png
+             (for-each
+               (lambda (size output-path)
+                 (system* "convert"
+                          "-background" "transparent" tmp-path
+                          "-resize" size
+                          "-gravity" "center"
+                          "-extent" size
+                          output-path))
+               %favicon-sizes
+               (drop (kernel-output-files kernel) 2))
+             ; ico
              (system* "convert"
-                      "-background" "transparent" input-path
+                      "-background" "transparent" tmp-path
                       "-resize" "256x256"
                       "-gravity" "center"
                       "-extent" "256x256"
                       "-define" "icon:auto-resize=16,24,32,48,64,72,96,128,256"
-                      output-path))))
+                      ico-path))))
 
 (define* (make-inkscape-kernel input-file output-file
                                #:key (export "png"))
@@ -109,6 +148,32 @@
                         ((string=? export "eps") (format #f "--export-eps=~a" output-path))
                         (else #f))
                       input-path))))
+
+(define* (make-webp-kernel input-file #:optional (output-file #f)
+                           #:key
+                           (options '("-lossless" "-quiet"))
+                           (site #f))
+  (cond
+    ((and site (not output-file))
+     (set! output-file (site-output-directory site (replace-extension input-file "webp"))))
+    ((not output-file)
+     (set! output-file (replace-extension input-file "webp"))))
+  (make <kernel>
+    #:name "webp"
+    #:input-files `(,input-file)
+    #:output-files `(,output-file)
+    #:proc (lambda (kernel)
+             (define input-path (car (kernel-input-files kernel)))
+             (define output-path (car (kernel-output-files kernel)))
+             (mkdir-p (dirname output-path))
+             (apply system* `("cwebp" ,@options "-o" ,output-path ,input-path)))))
+
+(define-public (make-webp-generator)
+  (lambda (kernel)
+    (define png-files
+      (filter (lambda (path) (string-suffix? ".png" path))
+              (kernel-output-files kernel)))
+    (map make-webp-kernel png-files)))
 
 (define-public (make-css-kernels site directory)
   (map
@@ -128,7 +193,12 @@
   (define args-hash (hash args 18446744073709551615))
   (define cache-file (format #f "~a/.guix-build/~x" (site-output-directory site) args-hash))
   (if (file-exists? cache-file)
-    (string-trim-both (call-with-input-file cache-file get-string-all))
+    (let ((cached-path (string-trim-both (call-with-input-file cache-file get-string-all))))
+      (if (file-exists? cached-path)
+        cached-path
+        (begin
+          (delete-file cache-file)
+          (apply guix-build `(,site ,@args)))))
     (let* ((port (apply open-pipe* `(,OPEN_READ "guix" "build" ,@args)))
            (output (string-trim-both (get-string-all port)))
            (exit-code (status:exit-val (close-pipe port))))
@@ -140,3 +210,87 @@
           output)
         #f))))
 
+(define-public (make-katex-css-kernels site)
+  (define katex (guix-build site "-e" "(@ (gnu packages site) katex)"))
+  (define out (site-output-directory site))
+  `(,(make-minify-kernel
+       (format #f "~a/katex.css" katex)
+       (format #f "~a/katex/katex.css" out))))
+
+(define-public (make-katex-js-kernels site)
+  (define katex (guix-build site "-e" "(@ (gnu packages site) katex)"))
+  (define out (site-output-directory site))
+  `(,(make-uglify-js-kernel
+       (format #f "~a/katex.js" katex)
+       (format #f "~a/katex/katex.js" out))))
+
+(define-public (make-katex-font-kernels site)
+  (define katex (guix-build site "-e" "(@ (gnu packages site) katex)"))
+  (define out (site-output-directory site))
+  (map
+    (lambda (path)
+      (make-symlink-kernel path (format #f "~a/katex/fonts/~a" out (basename path))))
+    (fold
+      (lambda (name prev)
+        (if (string-prefix? "." name)
+          prev
+          (cons (string-append katex "/fonts/" name) prev)))
+      '()
+      (scandir (format #f "~a/fonts" katex)))))
+
+(define* (make-julia-mono-kernels site #:optional (output-subdirectory "fonts"))
+  (define julia-mono (guix-build site "-e" "(@ (gnu packages fonts) font-juliamono)"))
+  (define out (site-output-directory site))
+  (map
+    (lambda (path)
+      (make-symlink-kernel path (format #f "~a/~a/~a" out output-subdirectory (basename path))))
+    (fold
+      (lambda (name prev)
+        (if (string-prefix? "." name)
+          prev
+          (cons (string-append julia-mono "/share/fonts/truetype/" name) prev)))
+      '()
+      (scandir (format #f "~a/share/fonts/truetype" julia-mono)))))
+
+(define* (make-ubuntu-font-kernels site #:optional (output-subdirectory "fonts"))
+  (define julia-mono (guix-build site "-e" "(@ (gnu packages site) font-ubuntu)"))
+  (define out (site-output-directory site))
+  (map
+    (lambda (path)
+      (make-symlink-kernel path (format #f "~a/~a/~a" out output-subdirectory (basename path))))
+    (fold
+      (lambda (name prev)
+        (if (string-prefix? "." name)
+          prev
+          (cons (string-append julia-mono "/share/fonts/truetype/" name) prev)))
+      '()
+      (scandir (format #f "~a/share/fonts/truetype" julia-mono)))))
+
+(define-public (make-command-kernels name . args)
+  (if (get-kernel-target)
+    `(,(make <kernel>
+         #:name name
+         #:proc (lambda (kernel) (apply system* args))))
+    '()))
+
+(define* (make-rsync-kernels #:key
+                             (name "rsync")
+                             (options '("-aL" "--exclude=.*" "--delete" "--info=progress2"))
+                             (source #f)
+                             (site #f)
+                             (destination #f))
+  (cond
+    ((not destination) #f)
+    ((and (not source) (not site)) #f)
+    (else
+      (apply make-command-kernels
+             `(,name
+                "rsync"
+                ,@options
+                ,(cond
+                   (source source)
+                   (site (string-append (site-output-directory site) "/")))
+                ,destination)))))
+
+(define-public (make-clean-kernels site)
+  (make-command-kernels "clean" "rm" "-rf" "--one-file-system" (site-output-directory site)))

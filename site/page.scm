@@ -23,61 +23,7 @@
 (define %json-feed-path "feed.json")
 (define %sitemap-path "sitemap.xml")
 (define %russian-regex (make-regexp "[а-яА-Я]"))
-;; https://ru.wiktionary.org/wiki/%D0%9A%D0%B0%D1%82%D0%B5%D0%B3%D0%BE%D1%80%D0%B8%D1%8F:%D0%A0%D1%83%D1%81%D1%81%D0%BA%D0%B8%D0%B5_%D0%BF%D1%80%D0%B5%D0%B4%D0%BB%D0%BE%D0%B3%D0%B8
-(define %russian-prepositions
-  '("без"
-    "безо"
-    "в"
-    "во"
-    "для"
-    "до"
-    "за"
-    "из"
-    "из-за"
-    "к"
-    "ко"
-    "на"
-    "над"
-    "о"
-    "об"
-    "обо"
-    "от"
-    "ото"
-    "по"
-    "под"
-    "при"
-    "про"
-    "с"
-    "со"
-    "не"))
-;; https://ru.wiktionary.org/wiki/%D0%9A%D0%B0%D1%82%D0%B5%D0%B3%D0%BE%D1%80%D0%B8%D1%8F:%D0%A0%D1%83%D1%81%D1%81%D0%BA%D0%B8%D0%B5_%D1%81%D0%BE%D1%8E%D0%B7%D1%8B
-(define %russian-unions
-  '(
-    "а"
-    "где"
-    "еще"
-    "ж"
-    "же"
-    "и"
-    "или"
-    "как"
-    "когда"
-    "который"
-    "ли"
-    "ни"
-    "но"
-    "то"
-    "чем"
-    "что"
-    "чтобы"
-    "т\\.е\\."
-    "это"
-    ))
-(define %old-russian-non-breaking-space-regex
-  (make-regexp (format #f "\\b(~a|~a|[а-яА-Я]{1,2})(\\s+)"
-                       (string-join %russian-prepositions "|")
-                       (string-join %russian-unions "|"))
-               regexp/icase))
+
 (define %russian-non-breaking-space-regex
   (make-regexp "\\b([а-яА-Я]{1,3})\\s+([а-яА-Я0-9])"))
 (define %russian-non-breaking-space-regex-pre
@@ -259,17 +205,17 @@
                                 #:keyword-characters keyword-characters
                                 #:macro-prefix "#")))
       (sh . ,(lambda (tag . kids)
-                 (define keywords
-                   '("export" "if" "then" "fi" "elif" "else" "case" "esac" "in" "set"
-                     "break" "for" "do" "done" "while" "shift"
-                     "cd" "echo" "exit"
-                     "source" "alias" "return"))
-                 (define keyword-characters "_")
-                 (highlight-code kids
-                                 #:keywords keywords
-                                 #:keyword-characters keyword-characters
-                                 #:comment-character #\#)
-                 ))
+               (define keywords
+                 '("export" "if" "then" "fi" "elif" "else" "case" "esac" "in" "set"
+                   "break" "for" "do" "done" "while" "shift"
+                   "cd" "echo" "exit"
+                   "source" "alias" "return"))
+               (define keyword-characters "_")
+               (highlight-code kids
+                               #:keywords keywords
+                               #:keyword-characters keyword-characters
+                               #:comment-character #\#)
+               ))
       (meson . ,(lambda (tag . kids)
                   (define keywords
                     '("if" "else" "endif" "foreach" "endforeach"
@@ -323,22 +269,27 @@
                                        section name section)))
                      `(a (@ (href ,url)) (code ,name)))))
       (image . ,(lambda (tag . kids)
-                  (let ((path (list-ref kids 0))
-                        (text (if (>= (length kids) 2) (list-ref kids 1) "")))
+                  (let* ((path (list-ref kids 0))
+                         (text (if (>= (length kids) 2) (list-ref kids 1) ""))
+                         (webp (if (string-suffix? ".png" path)
+                                 `((source (@ (srcset ,(site-prefix/ site (replace-extension path "webp")))
+                                              (type "image/webp"))))
+                                 '())))
                     (page-add-input-files page `(,(string-append "src/" path)))
                     (if (string-null? text)
-                      `(img (@ (src ,(site-prefix/ site path))
-                               (alt ,(site-prefix/ site path))))
+                      `(picture
+                         ,@webp
+                         (img (@ (src ,(site-prefix/ site path))
+                                 (alt ,(site-prefix/ site path)))))
                       `(figure (@ (class "center"))
-                               (img (@ (src ,(site-prefix/ site path))
-                                       (alt ,text)))
+                               (picture
+                                 ,@webp
+                                 (img (@ (src ,(site-prefix/ site path)) (alt ,text))))
                                (figcaption ,(cdr kids)))))))
       (nbsp . ,(lambda (tag . kids) "\u00a0"))
       (emdash . ,(lambda (tag . kids) "\u00a0—"))
       (math . ,(lambda (tag . kids)
                  `(span (@ (class "math")) ,@kids)))
-      (nobr . ,(lambda (tag . kids)
-                 `(span (@ (class "text-nowrap")) ,@kids)))
       (href . ,(lambda (tag . kids)
                  (if (not (null? kids))
                    (let ((uri (string->uri (car kids))))
@@ -346,12 +297,12 @@
                        (format (current-error-port) "Warning, double slash in URL: ~a\n" (uri-path uri)))))
                  (cons tag kids)))
       (video-figure *preorder* . ,(lambda (tag . kids)
-                             (let ((path (list-ref kids 0))
-                                   (text (list-ref kids 1)))
-                               `(figure (@ (class "text-center"))
-                                        (video (@ (class "img-fluid rounded") (controls "") (loop "loop"))
-                                               (source (@ (src ,path) (type "video/ogg"))))
-                                        (figcaption (@ (class "text-muted")) ,text)))))
+                                    (let ((path (list-ref kids 0))
+                                          (text (list-ref kids 1)))
+                                      `(figure (@ (class "text-center"))
+                                               (video (@ (class "img-fluid rounded") (controls "") (loop "loop"))
+                                                      (source (@ (src ,path) (type "video/ogg"))))
+                                               (figcaption (@ (class "text-muted")) ,text)))))
       (paragraph . ,(lambda (tag . kids)
                       (apply make-paragraph `("" tag ,@kids))))
       (continue . ,(lambda (tag . kids)
@@ -391,8 +342,14 @@
       (task . ,(lambda (tag . kids)
                  `(h2 (span (@ (class "task-number"))) ,kids)))
       (inline-svg . ,(lambda (tag . kids)
-                       (page-add-input-files page `(,(car kids)))
-                       `(,(call-with-input-file (car kids)
+                       (define num-kids (length kids))
+                       (define site (if (= num-kids 2) (list-ref kids 0) #f))
+                       (define path (list-ref kids (if (= num-kids 2) 1 0)))
+                       (page-add-input-files page `(,path))
+                       `(,(call-with-input-file
+                            (if site
+                              (site-output-directory site path)
+                              path)
                             (lambda (port)
                               (pre-post-order
                                 (cddr (xml->sxml port
@@ -469,10 +426,19 @@
       ;; Title
       (title ,(page-title page))
       ;; Favicons
+      ,@(map
+          (lambda (size)
+            (define rel
+              (cond
+                ((member size '("167x167" "180x180")) "apple-touch-icon")
+                (else "icon")))
+            `(link (@ (rel ,rel)
+                      (type "image/png")
+                      (sizes ,size)
+                      (href ,(site-prefix/ site "favicon" (string-append size ".png"))))))
+          (@@ (site kernels) %favicon-sizes))
       (link (@ (rel "icon") (sizes "any") (type "image/svg+xml")
-               (href ,(site-prefix/ site "images/logo.svg"))))
-      (link (@ (rel "icon") (type "image/png")
-               (href ,(site-prefix/ site "images/logo.png"))))
+               (href ,(site-prefix/ site "favicon/any.svg"))))
       (link (@ (rel "icon") (type "image/x-icon")
                (href ,(site-prefix/ site "favicon.ico"))))
       ;; Misc

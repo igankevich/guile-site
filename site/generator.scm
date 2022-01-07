@@ -15,7 +15,6 @@
   #:use-module (site directory)
   #:use-module (site kernel))
 
-(define %output-directory "build/rsync")
 (define %rss-date "%a, %d %b %Y %H:%M:%S %z")
 
 (define (write-atom-feed site pages path)
@@ -185,7 +184,7 @@
   (kernels-process (make-all-page-kernels site index-page)))
 
 (define (make-robots-kernel site)
-  (define output-path (string-append %output-directory "/robots.txt"))
+  (define output-path (string-append (site-output-directory site) "/robots.txt"))
   (make <kernel>
     #:name "robots"
     #:input-files '()
@@ -197,11 +196,12 @@
              #t)))
 
 (define (make-feeds-kernel site pages)
+  (define out (site-output-directory site))
   (define output-paths
-    `(,(string-append %output-directory "/" %atom-feed-path)
-       ,(string-append %output-directory "/" %rss-feed-path)
-       ,(string-append %output-directory "/" %json-feed-path)
-       ,(string-append %output-directory "/" %sitemap-path)))
+    `(,(string-append out "/" %atom-feed-path)
+       ,(string-append out "/" %rss-feed-path)
+       ,(string-append out "/" %json-feed-path)
+       ,(string-append out "/" %sitemap-path)))
   (define procedures
     `(,write-atom-feed
        ,write-rss-feed
@@ -243,7 +243,7 @@
              #t)))
 
 (define (make-index-page-kernel site pages directory index-page)
-  (define output-path (string-append %output-directory "/" directory "/index.html"))
+  (define output-path (string-append (site-output-directory site) "/" directory "/index.html"))
   ;;(pretty-print (page-content page))
   (make <kernel>
     #:name "index-page"
@@ -268,11 +268,6 @@
   (map
     (lambda (name) (string-append path "/" name))
     (scandir path (lambda (name) (not (string-prefix? "." name))))))
-
-;; Deprecated. Use make-copy-kernels istead.
-(define (copy-assets)
-  (kernels-process
-    (make-copy-kernels '("images"))))
 
 (define (get-mime-type path)
   (define port (open-pipe* OPEN_READ "file" "--mime-type" "--brief" "--dereference" "-E" path))
@@ -300,13 +295,13 @@
                "-i" input-path
                "-o" output-path))))
 
-(define (make-copy-kernels directories)
+(define (make-copy-kernels site directories)
   (append-map
     (lambda (dir)
       (define path (string-append "src/" dir))
       (map
         (lambda (name)
-          (define output-path (string-append "build/rsync/" dir "/" name))
+          (define output-path (string-append (site-output-directory site) "/" dir "/" name))
           (define input-path (string-append "src/" dir "/" name))
           (make <kernel>
             #:name "copy"

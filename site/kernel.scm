@@ -22,6 +22,8 @@
   (hash kernel 4294967295))
 
 (define (kernel-up-to-date? kernel)
+  (define input-files (kernel-input-files kernel))
+  (define output-files (kernel-output-files kernel))
   (define now (current-time))
   (define (file->mtime file default-mtime)
     (define status (stat file #f))
@@ -33,7 +35,7 @@
         ;(format #t "input-file ~a mtime ~a\n" file mtime)
         (if (> mtime prev) mtime prev))
       0
-      (kernel-input-files kernel)))
+      input-files))
   (define min-output-mtime
     (fold
       (lambda (file prev)
@@ -44,10 +46,11 @@
               ;(format #t "output-file ~a mtime ~a\n" file mtime)
               (if (< mtime prev) mtime prev)))))
       now
-      (kernel-output-files kernel)))
+      output-files))
   ;(format #t "~a: max-input-mtime ~a min-output-mtime ~a\n"
   ;        (kernel-name kernel) max-input-mtime min-output-mtime)
-  (<= max-input-mtime min-output-mtime))
+  (and (not (null? input-files))
+       (<= max-input-mtime min-output-mtime)))
 
 (define (path+hash path)
   (define h (hash (call-with-input-file path get-string-all) 4294967295))
@@ -90,7 +93,14 @@
                 (kernel-output-files kernel))))
           ret)))))
 
-(define (kernels-process kernels)
+(define (get-kernel-target)
+  (let ((args (command-line)))
+    (if (>= (length args) 2)
+      (list-ref args 1)
+      #f)))
+
+(define* (kernels-process kernels #:optional (generators '()))
+  (define target (get-kernel-target))
   (for-each
     (lambda (kernel)
       (catch #t
@@ -113,7 +123,13 @@
                   (cons key parameters))))
       ;(format #t "~a: ~a is up to date\n" (kernel-name kernel) (kernel-output-files kernel))
       )
-    kernels))
+    (append-map
+      (lambda (kernel)
+        (cons kernel (append-map (lambda (generator) (generator kernel)) generators)))
+      (filter
+        (lambda (kernel)
+          (or (not target) (and target (string=? target (kernel-name kernel)))))
+        kernels))))
 
 ;; export all symbols
 (module-map

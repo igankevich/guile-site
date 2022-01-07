@@ -11,8 +11,11 @@
   (email #:init-keyword #:email #:accessor site-email)
   (year #:init-keyword #:year #:accessor site-year)
   (directories #:init-keyword #:directories #:accessor site-directories #:init-value '())
-  (output-directory #:init-keyword #:output-directory #:accessor site-output-directory
-                    #:init-value "build/rsync"))
+  (build-directory #:init-keyword #:build-directory #:accessor site-build-directory
+                   #:init-value "build/rsync"))
+
+(define (site-output-directory site . rest)
+  (string-join `(,(site-build-directory site) ,(site-prefix site) ,@rest) "/"))
 
 (define-method (site-email-rss (s <site>))
   (format #f "~a (~a)" (site-email s) (site-author s)))
@@ -50,9 +53,15 @@
 
 (define site-output-path site-file-output-directory)
 
+(define (replace-extension path new-extension)
+  (define i (string-rindex path #\.))
+  (define j (string-rindex path #\/))
+  (if (< j i)
+    (string-append (substring path 0 i) "." new-extension)
+    path))
+
 ;; export all symbols
 (module-map
   (lambda (sym var)
     (module-export! (current-module) (list sym)))
   (current-module))
-
