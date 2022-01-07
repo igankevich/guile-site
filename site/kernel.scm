@@ -16,7 +16,8 @@
   (input-files #:init-keyword #:input-files #:accessor kernel-input-files #:init-value '())
   (output-files #:init-keyword #:output-files #:accessor kernel-output-files #:init-value '())
   (proc #:init-keyword #:proc #:accessor kernel-proc #:init-value (lambda (kernel) #t))
-  (hash? #:init-keyword #:hash? #:accessor kernel-hash? #:init-value #f))
+  (hash? #:init-keyword #:hash? #:accessor kernel-hash? #:init-value #f)
+  (target? #:init-keyword #:target? #:accessor kernel-target? #:init-value #f))
 
 (define (kernel-hash kernel)
   (hash kernel 4294967295))
@@ -128,7 +129,8 @@
         (cons kernel (append-map (lambda (generator) (generator kernel)) generators)))
       (filter
         (lambda (kernel)
-          (or (not target) (and target (string=? target (kernel-name kernel)))))
+          (or (and (not target) (not (kernel-target? kernel)))
+              (and target (string=? target (kernel-name kernel)))))
         kernels))))
 
 ;; export all symbols

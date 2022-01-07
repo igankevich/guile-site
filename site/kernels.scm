@@ -13,7 +13,7 @@
              make-webp-kernel
              make-julia-mono-kernels
              make-ubuntu-font-kernels
-             make-rsync-kernels
+             make-rsync-kernel
              make-favicon-kernel))
 
 ; https://loqbooq.app/blog/add-favicon-modern-browser-guide
@@ -266,24 +266,23 @@
       '()
       (scandir (format #f "~a/share/fonts/truetype" julia-mono)))))
 
-(define-public (make-command-kernels name . args)
-  (if (get-kernel-target)
-    `(,(make <kernel>
-         #:name name
-         #:proc (lambda (kernel) (apply system* args))))
-    '()))
+(define-public (make-command-kernel name . args)
+  (make <kernel>
+    #:name name
+    #:target? #t
+    #:proc (lambda (kernel) (apply system* args))))
 
-(define* (make-rsync-kernels #:key
-                             (name "rsync")
-                             (options '("-aL" "--exclude=.*" "--delete" "--info=progress2"))
-                             (source #f)
-                             (site #f)
-                             (destination #f))
+(define* (make-rsync-kernel #:key
+                            (name "rsync")
+                            (options '("-aL" "--exclude=.*" "--delete" "--info=progress2"))
+                            (source #f)
+                            (site #f)
+                            (destination #f))
   (cond
     ((not destination) #f)
     ((and (not source) (not site)) #f)
     (else
-      (apply make-command-kernels
+      (apply make-command-kernel
              `(,name
                 "rsync"
                 ,@options
@@ -292,5 +291,5 @@
                    (site (string-append (site-output-directory site) "/")))
                 ,destination)))))
 
-(define-public (make-clean-kernels site)
-  (make-command-kernels "clean" "rm" "-rf" "--one-file-system" (site-output-directory site)))
+(define-public (make-clean-kernel site)
+  (make-command-kernel "clean" "rm" "-rf" "--one-file-system" (site-output-directory site)))
