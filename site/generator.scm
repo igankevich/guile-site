@@ -34,7 +34,6 @@
          (name ,(page-author page))
          ;;(email )
          )))
-  (format (current-error-port) "write ~a\n" path)
   (call-with-output-file path
     (lambda (port)
       (display "<?xml version=\"1.0\" encoding=\"utf-8\"?>" port)
@@ -74,7 +73,6 @@
        ;;(source)
        ))
   (define current-date (strftime %rss-date (localtime (current-time))))
-  (format (current-error-port) "write ~a\n" path)
   (call-with-output-file path
     (lambda (port)
       (display "<?xml version=\"1.0\" encoding=\"utf-8\"?>" port)
@@ -107,14 +105,12 @@
                  port))))
 
 (define (write-json-feed site pages path)
-  (format (current-error-port) "write ~a\n" path)
   (call-with-output-file path
     (lambda (port)
       (display "{}\n" port)))
   #t)
 
 (define (write-sitemap site pages path)
-  (format (current-error-port) "write ~a\n" path)
   (call-with-output-file path
     (lambda (port)
       (display "<?xml version=\"1.0\" encoding=\"utf-8\"?>" port)

@@ -28,6 +28,8 @@
   (make-regexp "\\b([а-яА-Я]{1,3})\\s+([а-яА-Я0-9])"))
 (define %russian-non-breaking-space-regex-pre
   (make-regexp "\\s+(—)"))
+(define %russian-no-wrap
+  (make-regexp "\\b(\\w+[\\w—]+\\w+)\\b"))
 
 (define (russian-text? str)
   (regexp-exec %russian-regex str))
@@ -39,9 +41,26 @@
            `(,(apply regexp-substitute `(,#f ,match pre ,@rest post)) ,regex ,@rest))
     str))
 
+(define (regexp-replace/sxml str regex sxml)
+  (define match (regexp-exec regex str))
+  (if match
+    `(,(match:prefix match)
+       ,(pre-post-order sxml
+          `((*default* . ,(lambda (tag . kids) `(,tag ,@kids)))
+            (*text* . ,(lambda (_ txt)
+                         (if (number? txt)
+                           (match:substring match txt)
+                           txt)))))
+       ,@(let ((tmp (regexp-replace/sxml (match:suffix match) regex sxml)))
+           (if (string? tmp)
+             `(,tmp)
+             tmp)))
+    str))
+
 (define (typeset-russian str)
   (set! str (regexp-replace str %russian-non-breaking-space-regex 1 "\u00A0" 2))
   (set! str (regexp-replace str %russian-non-breaking-space-regex-pre "\u00A0" 1))
+  (set! str (regexp-replace/sxml str %russian-no-wrap '(span (@ (class "nowrap")) 1)))
   str)
 
 (define (typeset-english str)
