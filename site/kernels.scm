@@ -132,8 +132,12 @@
                       "-define" "icon:auto-resize=16,24,32,48,64,72,96,128,256"
                       ico-path))))
 
-(define* (make-inkscape-kernel input-file output-file
-                               #:key (export "png"))
+(define* (make-inkscape-kernel input-file #:optional output-file #:key
+                               (site #f)
+                               (export "png")
+                               (options '()))
+  (if (and site (not output-file))
+    (set! output-file (site-output-path site (replace-extension input-file export))))
   (make <kernel>
     #:name "inkscape"
     #:input-files `(,input-file)
@@ -142,12 +146,14 @@
              (define input-path (car (kernel-input-files kernel)))
              (define output-path (car (kernel-output-files kernel)))
              (mkdir-p (dirname output-path))
-             (system* "inkscape" "--without-gui"
-                      (cond
-                        ((string=? export "png") (format #f "--export-png=~a" output-path))
-                        ((string=? export "eps") (format #f "--export-eps=~a" output-path))
-                        (else #f))
-                      input-path))))
+             (apply system*
+                    `("inkscape" "--without-gui"
+                      ,(cond
+                         ((string=? export "png") (format #f "--export-png=~a" output-path))
+                         ((string=? export "eps") (format #f "--export-eps=~a" output-path))
+                         (else #f))
+                      ,@options
+                      ,input-path)))))
 
 (define* (make-webp-kernel input-file #:optional (output-file #f)
                            #:key

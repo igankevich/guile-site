@@ -20,6 +20,7 @@
   (publication #:init-keyword #:publication #:accessor reference-publication #:init-value #f)
   (url #:init-keyword #:url #:accessor reference-url #:init-value #f)
   (abstract #:init-keyword #:abstract #:accessor reference-abstract #:init-value #f)
+  (tags #:init-keyword #:tags #:accessor reference-tags #:init-value '())
   (fields #:init-keyword #:fields #:accessor reference-fields #:init-value '())
   (open-access? #:init-keyword #:open-access? #:accessor reference-open-access? #:init-value #f))
 
@@ -78,6 +79,7 @@
      ,@(make-field "url" (reference-url ref))
      ,@(make-field "abstract" (reference-abstract ref))
      ,@(make-field "open-access" (reference-open-access? ref))
+     ,@(make-field "tags" (reference-tags ref))
      (fields
        ,@(map (lambda (field)
                 `(,(string->symbol (car field))
@@ -103,6 +105,7 @@
       (url . ,(lambda (tag . kids) (set! (reference-url ref) (car kids))))
       (abstract . ,(lambda (tag . kids) (set! (reference-abstract ref) (car kids))))
       (open-access . ,(lambda (tag . kids) (set! (reference-open-access? ref) (car kids))))
+      (tags . ,(lambda (tag . kids) (set! (reference-tags ref) (car kids))))
       (fields *preorder* .
               ,(lambda (tag . kids)
                  (pre-post-order kids fields-rules)))
