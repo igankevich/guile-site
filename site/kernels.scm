@@ -14,7 +14,9 @@
              make-julia-mono-kernels
              make-ubuntu-font-kernels
              make-rsync-kernel
-             make-favicon-kernel))
+             make-favicon-kernel
+             make-gnuplot-kernel
+             make-scour-kernel))
 
 ; https://loqbooq.app/blog/add-favicon-modern-browser-guide
 (define-public %favicon-sizes '("16x16" "32x32" "48x48" "192x192" "167x167" "180x180"))
@@ -299,3 +301,84 @@
 
 (define-public (make-clean-kernel site)
   (make-command-kernel "clean" "rm" "-rf" "--one-file-system" (site-output-directory site)))
+
+(define* (make-gnuplot-kernel input-files #:optional (output-files '()) #:key (site #f))
+  (if site
+    (let ((dir (dirname (site-file-output-directory site (first input-files)))))
+      (set! output-files
+        (map
+          (lambda (file) (string-append dir "/" file))
+          output-files))))
+  (make <kernel>
+    #:name "gnuplot"
+    #:input-files input-files
+    #:output-files output-files
+    #:proc (lambda (kernel)
+             (define input-path (first (kernel-input-files kernel)))
+             (define output-path (first (kernel-output-files kernel)))
+             (mkdir-p (dirname output-path))
+             (system* "gnuplot"
+                      "-e" (format #f "output_directory='~a'" (dirname output-path))
+                      "-d" input-path))))
+
+(define* (make-scour-kernel input-file #:optional output-file #:key (site #f))
+  (if (not output-file)
+    (set! output-file (site-file-output-directory site input-file)))
+  (make <kernel>
+    #:name "scour"
+    #:input-files `(,input-file)
+    #:output-files `(,output-file)
+    #:proc
+    (lambda (kernel)
+      (define input-path (first (kernel-input-files kernel)))
+      (define output-path (first (kernel-output-files kernel)))
+      (define mime-type (get-mime-type input-path))
+      (mkdir-p (dirname output-path))
+      (system* "scour"
+               "--enable-comment-stripping"
+               "--enable-id-stripping"
+               "--shorten-ids"
+               "--indent=none"
+               "--remove-descriptive-elements"
+               "-i" input-path
+               "-o" output-path))))
+
+(define-public (make-copy-kernels site directories)
+  (append-map
+    (lambda (dir)
+      (define path (string-append "src/" dir))
+      (map
+        (lambda (name)
+          (define output-path (string-append (site-output-directory site) "/" dir "/" name))
+          (define input-path (string-append "src/" dir "/" name))
+          (make <kernel>
+            #:name "copy"
+            #:input-files `(,input-path)
+            #:output-files `(,output-path)
+            #:proc (lambda (kernel)
+                     (define input-path (first (kernel-input-files kernel)))
+                     (define output-path (first (kernel-output-files kernel)))
+                     (define mime-type (get-mime-type input-path))
+                     (mkdir-p (dirname output-path))
+                     (define ret
+                       (cond
+                         ((string=? mime-type "image/svg+xml")
+                          (let ((output-path-tmp (string-append output-path ".tmp")))
+                            (and
+                              (= 0 (system* "inkscape"
+                                            (format #f "--export-plain-svg=~a" output-path-tmp)
+                                            input-path))
+                              (= 0 (system* "scour" "-i" output-path-tmp "-o" output-path)))))
+                         (else
+                           (copy-file input-path output-path)
+                           #t)))
+                     (chmod output-path #o0644)
+                     ret)))
+        (scandir path (lambda (name) (not (string-prefix? "." name))))))
+    directories))
+
+(define (get-mime-type path)
+  (define port (open-pipe* OPEN_READ "file" "--mime-type" "--brief" "--dereference" "-E" path))
+  (define output (get-string-all port))
+  (define exit-code (status:exit-val (close-pipe port)))
+  (if (= exit-code 0) (string-trim-both output) ""))

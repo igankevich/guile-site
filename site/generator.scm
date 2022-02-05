@@ -265,66 +265,6 @@
     (lambda (name) (string-append path "/" name))
     (scandir path (lambda (name) (not (string-prefix? "." name))))))
 
-(define (get-mime-type path)
-  (define port (open-pipe* OPEN_READ "file" "--mime-type" "--brief" "--dereference" "-E" path))
-  (define output (get-string-all port))
-  (define exit-code (status:exit-val (close-pipe port)))
-  (if (= exit-code 0) (string-trim-both output) ""))
-
-(define (make-scour-kernel input-file output-file)
-  (make <kernel>
-    #:name "scour"
-    #:input-files `(,input-file)
-    #:output-files `(,output-file)
-    #:proc
-    (lambda (kernel)
-      (define input-path (first (kernel-input-files kernel)))
-      (define output-path (first (kernel-output-files kernel)))
-      (define mime-type (get-mime-type input-path))
-      (mkdir-p (dirname output-path))
-      (system* "scour"
-               "--enable-comment-stripping"
-               "--enable-id-stripping"
-               "--shorten-ids"
-               "--indent=none"
-               "--remove-descriptive-elements"
-               "-i" input-path
-               "-o" output-path))))
-
-(define (make-copy-kernels site directories)
-  (append-map
-    (lambda (dir)
-      (define path (string-append "src/" dir))
-      (map
-        (lambda (name)
-          (define output-path (string-append (site-output-directory site) "/" dir "/" name))
-          (define input-path (string-append "src/" dir "/" name))
-          (make <kernel>
-            #:name "copy"
-            #:input-files `(,input-path)
-            #:output-files `(,output-path)
-            #:proc (lambda (kernel)
-                     (define input-path (first (kernel-input-files kernel)))
-                     (define output-path (first (kernel-output-files kernel)))
-                     (define mime-type (get-mime-type input-path))
-                     (mkdir-p (dirname output-path))
-                     (define ret
-                       (cond
-                         ((string=? mime-type "image/svg+xml")
-                          (let ((output-path-tmp (string-append output-path ".tmp")))
-                            (and
-                              (= 0 (system* "inkscape"
-                                            (format #f "--export-plain-svg=~a" output-path-tmp)
-                                            input-path))
-                              (= 0 (system* "scour" "-i" output-path-tmp "-o" output-path)))))
-                         (else
-                           (copy-file input-path output-path)
-                           #t)))
-                     (chmod output-path #o0644)
-                     ret)))
-        (scandir path (lambda (name) (not (string-prefix? "." name))))))
-    directories))
-
 ;; export all symbols
 (module-map
  (lambda (sym var)
