@@ -10,6 +10,7 @@
   #:use-module (site directory)
   #:use-module (site kernel)
   #:use-module (site site)
+  #:use-module (site vtt)
   #:use-module (srfi srfi-1)
   #:use-module (sxml simple)
   #:use-module (sxml transform)
@@ -324,9 +325,12 @@
                                                (figcaption (@ (class "text-muted")) ,text)))))
       (video/captions
         .  ,(lambda (tag . kids)
+              (define num-kids (length kids))
               (define %site (list-ref kids 0))
               (define number (list-ref kids 1))
               (define name (list-ref kids 2))
+              (define captions-alist (list->captions (if (>= num-kids 4) (list-ref kids 3) '())))
+              (define captions-alist? (not (null? captions-alist)))
               (define captions-url (format #f "videos/~a-~a-captions.vtt" number name))
               (define captions-path (format #f "src/~a" captions-url))
               (define captions? (file-exists? captions-path))
@@ -353,9 +357,13 @@
                                          (label "Таймкоды")
                                          (srclang "ru"))))
                              '()))
-                  ,@(if captions?
-                      `(,(vtt->html (file->vtt captions-path) video-id))
-                      '()))
+                  ,@(cond
+                      (captions?
+                        `(,(vtt->html (file->vtt captions-path) video-id)))
+                      (captions-alist?
+                        `(,(captions->html captions-alist video-id))))
+                      (else
+                        '()))
                 `(img (@ (class "image") (alt "Coming soon") (src ,coming-soon-url))))))
       (paragraph . ,(lambda (tag . kids)
                       (apply make-paragraph `("" tag ,@kids))))
