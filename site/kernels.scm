@@ -7,6 +7,7 @@
   #:use-module (oop goops)
   #:use-module (site kernel)
   #:use-module (site site)
+  #:use-module (site page)
   #:use-module (srfi srfi-1)
   #:export (make-symlink-kernel
              make-inkscape-kernel
@@ -16,7 +17,9 @@
              make-rsync-kernel
              make-favicon-kernel
              make-gnuplot-kernel
-             make-scour-kernel))
+             make-scour-kernel
+             make-poster-kernel
+             make-videos-kernels))
 
 ; https://loqbooq.app/blog/add-favicon-modern-browser-guide
 (define-public %favicon-sizes '("16x16" "32x32" "48x48" "192x192" "167x167" "180x180"))
@@ -182,6 +185,23 @@
       (filter (lambda (path) (string-suffix? ".png" path))
               (kernel-output-files kernel)))
     (map make-webp-kernel png-files)))
+
+;(define-public (make-optipng-generator)
+;  (define (make-optipng-kernel input-file)
+;    (make <kernel>
+;      #:name "optipng"
+;      #:input-files `(,input-file)
+;      #:output-files `(,input-file)
+;      #:proc (lambda (kernel)
+;               (define input-path (car (kernel-input-files kernel)))
+;               (define output-path (car (kernel-output-files kernel)))
+;               (mkdir-p (dirname output-path))
+;               (apply system* `("cwebp" ,@options "-o" ,output-path ,input-path)))))
+;  (lambda (kernel)
+;    (define png-files
+;      (filter (lambda (path) (string-suffix? ".png" path))
+;              (kernel-output-files kernel)))
+;    (map make-webp-kernel png-files)))
 
 (define-public (make-css-kernels site directory)
   (map
@@ -376,6 +396,44 @@
                      ret)))
         (scandir path (lambda (name) (not (string-prefix? "." name))))))
     directories))
+
+(define* (make-poster-kernel title output-file
+                             #:key
+                             (input-files '())
+                             (arguments '("-size" "960x540"
+                                          "-font" "Ubuntu-Regular"
+                                          "-pointsize" "40"
+                                          "-background" "#2e3440"
+                                          "-fill" "#d8dee9"
+                                          "-gravity" "Center"
+                                          "-flatten")))
+  (make <kernel>
+    #:name "poster"
+    #:input-files input-files
+    #:output-files `(,output-file)
+    #:proc (lambda (kernel)
+             (define output-file (car (kernel-output-files kernel)))
+             (and
+               (apply system*
+                      `("convert" ,@arguments ,(format #f "caption:~a" title) ,output-file))
+               (system* "optipng" "-quiet" output-file)))))
+
+(define* (make-videos-kernels #:key
+                              (site #f)
+                              (pages-directory "src/notes")
+                              (videos-directory "src/videos"))
+  `(,@(map (lambda (path) (make-symlink-kernel path #f #:site site))
+           (list-files videos-directory))
+     ,(make-poster-kernel "Coming soon"
+                          (format #f "~a/videos/coming-soon.png" (site-output-directory site)))
+     ,@(map
+         (lambda (page)
+           (make-poster-kernel (page-title page)
+                               (format #f "~a/videos/~2,'0d-~a.png"
+                                       (site-output-directory site)
+                                       (page-number page) (page-name page))
+                               #:input-files `(,(page-input-file page))))
+         (all-pages pages-directory))))
 
 (define (get-mime-type path)
   (define port (open-pipe* OPEN_READ "file" "--mime-type" "--brief" "--dereference" "-E" path))

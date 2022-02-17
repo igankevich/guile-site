@@ -322,6 +322,41 @@
                                                (video (@ (class "img-fluid rounded") (controls "") (loop "loop"))
                                                       (source (@ (src ,path) (type "video/ogg"))))
                                                (figcaption (@ (class "text-muted")) ,text)))))
+      (video/captions
+        .  ,(lambda (tag . kids)
+              (define %site (list-ref kids 0))
+              (define number (list-ref kids 1))
+              (define name (list-ref kids 2))
+              (define captions-url (format #f "videos/~a-~a-captions.vtt" number name))
+              (define captions-path (format #f "src/~a" captions-url))
+              (define captions? (file-exists? captions-path))
+              (define video-url (format #f "videos/~a-~a.mp4" number name))
+              (define video-path (format #f "src/~a" video-url))
+              (define video? (file-exists? video-path))
+              (define webm-url (format #f "videos/~a-~a.webm" number name))
+              (define webm-path (format #f "src/~a" webm-url))
+              (define webm? (file-exists? webm-path))
+              (define video-id (format #f "id-~a-~a" number name))
+              (define poster-url (site-prefix/ %site (format #f "videos/~a-~a.png" number name)))
+              (define coming-soon-url (site-prefix/ %site "videos/coming-soon.png"))
+              (if video?
+                `((video (@ (controls "controls")
+                            (poster ,poster-url)
+                            (id ,video-id))
+                         ,@(if webm?
+                             `((source (@ (src ,(site-prefix/ %site webm-url)) (type "video/webm"))))
+                             '())
+                         (source (@ (src ,(site-prefix/ %site video-url)) (type "video/mp4")))
+                         ,@(if captions?
+                             `((track (@ (src ,(site-prefix/ %site captions-url))
+                                         (kind "captions")
+                                         (label "Таймкоды")
+                                         (srclang "ru"))))
+                             '()))
+                  ,@(if captions?
+                      `(,(vtt->html (file->vtt captions-path) video-id))
+                      '()))
+                `(img (@ (class "image") (alt "Coming soon") (src ,coming-soon-url))))))
       (paragraph . ,(lambda (tag . kids)
                       (apply make-paragraph `("" tag ,@kids))))
       (continue . ,(lambda (tag . kids)
@@ -638,7 +673,10 @@
   pages)
 
 (define (all-pages subdir)
-  (define dir (string-append "src/" subdir))
+  (define dir
+    (if (string-prefix? "src/" subdir)
+      subdir
+      (string-append "src/" subdir)))
   (define extension ".scm")
   (if (file-exists? dir)
     (sort
