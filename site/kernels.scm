@@ -12,6 +12,8 @@
   #:export (make-symlink-kernel
              make-inkscape-kernel
              make-webp-kernel
+             make-woff-kernel
+             make-woff2-kernel
              make-julia-mono-kernels
              make-ubuntu-font-kernels
              make-rsync-kernel
@@ -185,6 +187,70 @@
       (filter (lambda (path) (string-suffix? ".png" path))
               (kernel-output-files kernel)))
     (map make-webp-kernel png-files)))
+
+(define* (make-woff-kernel input-file #:optional (output-file #f)
+                           #:key
+                           (options '())
+                           (site #f))
+  (cond
+    ((and site (not output-file))
+     (set! output-file (site-output-directory site (replace-extension input-file "woff"))))
+    ((not output-file)
+     (set! output-file (replace-extension input-file "woff"))))
+  (make <kernel>
+    #:name "woff"
+    #:input-files `(,input-file)
+    #:output-files `(,output-file)
+    #:proc (lambda (kernel)
+             (define input-path (car (kernel-input-files kernel)))
+             (define output-path (car (kernel-output-files kernel)))
+             (mkdir-p (dirname output-path))
+             (apply system* `("sfnt2woff" ,@options ,input-path)))))
+
+(define-public (make-woff-generator)
+  (lambda (kernel)
+    (define output-files (kernel-output-files kernel))
+    (define ttf-files
+      (filter
+        (lambda (path)
+          (and
+            (string-suffix? ".ttf" path)
+            (let ((name (substring path 0 (- (string-length path) 4))))
+              (not (member (string-append name ".woff") output-files)))))
+        output-files))
+    (map make-woff-kernel ttf-files)))
+
+(define* (make-woff2-kernel input-file #:optional (output-file #f)
+                            #:key
+                            (options '())
+                            (site #f))
+  (cond
+    ((and site (not output-file))
+     (set! output-file (site-output-directory site (replace-extension input-file "woff2"))))
+    ((not output-file)
+     (set! output-file (replace-extension input-file "woff2"))))
+  (make <kernel>
+    #:name "woff2"
+    #:input-files `(,input-file)
+    #:output-files `(,output-file)
+    #:proc (lambda (kernel)
+             (define input-path (car (kernel-input-files kernel)))
+             (define output-path (car (kernel-output-files kernel)))
+             (mkdir-p (dirname output-path))
+             (apply system* `("woff2_compress" ,@options ,input-path)))))
+
+(define-public (make-woff2-generator)
+  (lambda (kernel)
+    (define output-files (kernel-output-files kernel))
+    (define ttf-files
+      (filter
+        (lambda (path)
+          (and
+            (string-suffix? ".ttf" path)
+            (let ((name (substring path 0 (- (string-length path) 4))))
+              (not (member (string-append name ".woff2") output-files)))))
+        output-files))
+    (map make-woff2-kernel ttf-files)))
 
 ;(define-public (make-optipng-generator)
 ;  (define (make-optipng-kernel input-file)

@@ -514,13 +514,15 @@
       (link (@ (href ,(string-append "/" %json-feed-path)) (type "application/json")
                (rel "alternate") (title ,(site-description site))))
       ;; preload fonts
-      ,@(map
-          (lambda (path)
-            `(link (@ (rel "preload")
-                      (as "font")
-                      (crossorigin "anonymous")
-                      (href ,(site-prefix/ site path)))))
-          (page-fonts page))
+      ,@(if (page-preload-fonts? page)
+          (map
+            (lambda (path)
+              `(link (@ (rel "preload")
+                        (as "font")
+                        (crossorigin "anonymous")
+                        (href ,(site-prefix/ site path)))))
+            (page-fonts page))
+          '())
       ;; CSS
       ,@(begin
           (for-each kernel-run (page-css page))
@@ -621,6 +623,7 @@
   (js-head #:init-keyword #:js-head #:accessor page-js-head #:init-value '())
   (js-footer #:init-keyword #:js-footer #:accessor page-js-footer #:init-value '())
   (fonts #:init-keyword #:fonts #:accessor page-fonts #:init-value '())
+  (preload-fonts? #:init-keyword #:preload-fonts? #:accessor page-preload-fonts? #:init-value #f)
   (fields #:init-keyword #:fields #:accessor page-fields #:init-value '()))
 
 (define (page-set-field! ref name value)
