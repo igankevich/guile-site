@@ -24,16 +24,19 @@
 (define %rx-time-4 (make-regexp "^([0-9]{1,2}):([0-9]{1,2}):([0-9]{1,2})\\.([0-9]{1,3})$"))
 
 (define-public (list->captions lst)
-  (map
-    (lambda (item start-time)
-      (define end-time (list-ref item 0))
-      (define text (list-ref item 1))
-      (make <caption>
-        #:text text
-        #:start-time (vtt-timestamp->seconds start-time)
-        #:end-time (vtt-timestamp->seconds end-time)))
-    lst
-    (cons "00:00:00.000" (map car (drop-right lst 1)))))
+  (cond
+    ((null? lst) lst)
+    (else
+      (map
+        (lambda (item start-time)
+          (define end-time (list-ref item 0))
+          (define text (list-ref item 1))
+          (make <caption>
+            #:text text
+            #:start-time (vtt-timestamp->seconds start-time)
+            #:end-time (vtt-timestamp->seconds end-time)))
+        lst
+        (cons "00:00:00.000" (map car (drop-right lst 1)))))))
 
 (define-public (alist->list lst)
   (map
@@ -158,9 +161,7 @@
   (define (get-seconds t) (integer (remainder (remainder t 3600) 60)))
   (cond
     ((> max-timestamp 3600)
-     ;(strftime "%H:%M:%S" (gmtime (integer seconds)))
      (format #f "~2,'0d:~2,'0d:~2,'0d"
-             (get-hours seconds) (get-minutes seconds) (get-seconds seconds))
-     )
+             (get-hours seconds) (get-minutes seconds) (get-seconds seconds)))
     (else
-      (strftime "%M:S" (gmtime (integer seconds))))))
+      (format #f "~2,'0d:~2,'0d" (get-minutes seconds) (get-seconds seconds)))))
