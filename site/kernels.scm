@@ -21,7 +21,10 @@
              make-gnuplot-kernel
              make-scour-kernel
              make-poster-kernel
-             make-videos-kernels))
+             make-videos-kernels
+             make-xournalpp-kernel
+             make-xournalpp-thumbnail-kernel
+             make-pdf-thumbnail-kernel))
 
 ; https://loqbooq.app/blog/add-favicon-modern-browser-guide
 (define-public %favicon-sizes '("16x16" "32x32" "48x48" "192x192" "167x167" "180x180"))
@@ -449,10 +452,12 @@
                      (define ret
                        (cond
                          ((string=? mime-type "image/svg+xml")
-                          (let ((output-path-tmp (string-append output-path ".tmp")))
+                          (let ((output-path-tmp (string-append output-path ".tmp.svg")))
                             (and
                               (= 0 (system* "inkscape"
-                                            (format #f "--export-plain-svg=~a" output-path-tmp)
+                                            "--export-plain-svg"
+                                            "--export-type=svg"
+                                            (format #f "--export-filename=~a" output-path-tmp)
                                             input-path))
                               (= 0 (system* "scour" "-i" output-path-tmp "-o" output-path)))))
                          (else
@@ -500,6 +505,78 @@
                                        (page-number page) (page-name page))
                                #:input-files `(,(page-input-file page))))
          (all-pages pages-directory))))
+
+(define* (make-xournalpp-kernel input-file #:optional output-file #:key (site #f))
+  (if (and site (not output-file))
+    (set! output-file (site-output-path site (replace-extension input-file "pdf"))))
+  (make <kernel>
+    #:name "xournalpp"
+    #:input-files `(,input-file)
+    #:output-files `(,output-file)
+    #:proc
+    (lambda (kernel)
+      (define input-path (first (kernel-input-files kernel)))
+      (define output-path (first (kernel-output-files kernel)))
+      (mkdir-p (dirname output-path))
+      (system* "xournalpp" (format #f "--create-pdf=~a" output-path) input-path))))
+
+(define* (make-xournalpp-thumbnail-kernel input-file
+                                          #:optional output-file
+                                          #:key (site #f)
+                                          (range "1-1")
+                                          (width #f)
+                                          (height #f))
+  (if (and site (not output-file))
+    (set! output-file (site-output-path site (replace-extension input-file "png"))))
+  (make <kernel>
+    #:name "xournalpp"
+    #:input-files `(,input-file)
+    #:output-files `(,output-file)
+    #:proc
+    (lambda (kernel)
+      (define input-path (first (kernel-input-files kernel)))
+      (define output-path (first (kernel-output-files kernel)))
+      (mkdir-p (dirname output-path))
+      (and
+        (apply system* `("xournalpp"
+                         ,(format #f "--create-img=~a" output-path)
+                         ,@(if range
+                             `(,(format #f "--export-range=~a" range))
+                             '())
+                         ,@(if width
+                             `(,(format #f "--export-png-width=~a" width))
+                             '())
+                         ,@(if height
+                             `(,(format #f "--export-png-height=~a" height))
+                             '())
+                         ,input-path))
+        (system* "optipng" "-quiet" output-path)))))
+
+(define* (make-pdf-thumbnail-kernel input-file
+                                    #:optional output-file
+                                    #:key (site #f) (page-number 0) (resize #f))
+  (if (and site (not output-file))
+    (set! output-file (site-output-path site (replace-extension input-file "png"))))
+  (make <kernel>
+    #:name "thumbnail"
+    #:input-files `(,input-file)
+    #:output-files `(,output-file)
+    #:proc
+    (lambda (kernel)
+      (define input-path (first (kernel-input-files kernel)))
+      (define output-path (first (kernel-output-files kernel)))
+      (mkdir-p (dirname output-path))
+      (and
+        (apply system* `("convert"
+                         ,@(if page-number
+                             `(,(format #f "~a[~a]" input-path page-number))
+                             `(,input-path))
+                         ,@(if resize
+                             `("-resize" ,resize)
+                             '())
+                         ,output-path))
+        (system* "optipng" "-quiet" output-path)))))
+
 
 (define (get-mime-type path)
   (define port (open-pipe* OPEN_READ "file" "--mime-type" "--brief" "--dereference" "-E" path))
