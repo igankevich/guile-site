@@ -23,6 +23,9 @@
 (define (site-prefix/ site . rest)
   (string-join (cons (site-prefix site) rest) "/"))
 
+(define (site-url/ site . rest)
+  (string-join (cons (site-url site) rest) "/"))
+
 (define (site-prefix// site . rest)
   (define path (string-join rest "/"))
   (define prefix (string-append (site-output-directory site) "/"))

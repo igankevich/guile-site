@@ -97,13 +97,14 @@
              (define start-time (caption-start-time caption))
              (define end-time (caption-end-time caption))
              (define text (caption-text caption))
-             (define caption-sxml (cdr (xml->sxml (format #f "<span>~a</span>" text))))
+             ;(define caption-sxml (cdr (xml->sxml (format #f "<span>~a</span>" text))))
+             (define caption-sxml `(span ,text))
              `(li (a (@ (href "#")
                         (data-time ,(number->string start-time))
                         (data-video ,video-id)
                         (class "video-caption")) ,(seconds->string start-time last-timestamp))
                   " "
-                  ,@caption-sxml
+                  ,caption-sxml
                   ))
            lst)))
 

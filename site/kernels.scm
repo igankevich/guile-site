@@ -583,3 +583,5 @@
   (define output (get-string-all port))
   (define exit-code (status:exit-val (close-pipe port)))
   (if (= exit-code 0) (string-trim-both output) ""))
+
+; TODO https://github.com/pts/pdfsizeopt
