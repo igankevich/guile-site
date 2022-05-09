@@ -4,6 +4,7 @@
   #:use-module (ice-9 format))
 
 (define-class <site> ()
+  (uuid #:init-keyword #:uuid #:accessor site-uuid)
   (url #:init-keyword #:url #:accessor site-url)
   (prefix #:init-keyword #:prefix #:accessor site-prefix)
   (description #:init-keyword #:description #:accessor site-description)
