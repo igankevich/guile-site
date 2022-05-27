@@ -352,6 +352,8 @@
       (emdash . ,(lambda (tag . kids) "\u00a0—"))
       (math . ,(lambda (tag . kids)
                  `(span (@ (class "math")) ,@kids)))
+      (display-math . ,(lambda (tag . kids)
+                 `(span (@ (class "display-math")) ,@kids)))
       (href . ,(lambda (tag . kids)
                  (if (not (null? kids))
                    (let ((uri (string->uri (car kids))))
