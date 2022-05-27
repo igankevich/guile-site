@@ -11,6 +11,7 @@
   #:use-module (site kernel)
   #:use-module (site site)
   #:use-module (site vtt)
+  #:use-module (site video)
   #:use-module (srfi srfi-1)
   #:use-module (sxml simple)
   #:use-module (sxml transform)
@@ -369,6 +370,10 @@
                                                (figcaption (@ (class "text-muted")) ,text)))))
       (video/captions . ,video-captions-rule)
       (video-captions . ,video-captions-rule)
+      (video-object . ,(lambda (tag . kids)
+                         (define site (list-ref kids 0))
+                         (define video (list-ref kids 1))
+                         ((video-sxml video) site video)))
       (blackboard . ,(lambda (tag . kids)
                        (define %site (list-ref kids 0))
                        (define number (list-ref kids 1))
@@ -736,6 +741,12 @@
       (lambda (a b)
         (< (page-number a) (page-number b))))
     '()))
+
+(define (get-mime-type path)
+  (define port (open-pipe* OPEN_READ "file" "--mime-type" "--brief" "--dereference" "-E" path))
+  (define output (get-string-all port))
+  (define exit-code (status:exit-val (close-pipe port)))
+  (if (= exit-code 0) (string-trim-both output) ""))
 
 ;; export all symbols
 (module-map

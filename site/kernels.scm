@@ -578,10 +578,4 @@
         (system* "optipng" "-quiet" output-path)))))
 
 
-(define (get-mime-type path)
-  (define port (open-pipe* OPEN_READ "file" "--mime-type" "--brief" "--dereference" "-E" path))
-  (define output (get-string-all port))
-  (define exit-code (status:exit-val (close-pipe port)))
-  (if (= exit-code 0) (string-trim-both output) ""))
-
 ; TODO https://github.com/pts/pdfsizeopt
