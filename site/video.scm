@@ -20,17 +20,30 @@
               (lambda (path prev) (if prev prev (file-exists? path)))
               #f
               (video-input-files video)))
+          (define files
+            (fold
+              (lambda (input-file output-file prev)
+                (define status (stat input-file #f))
+                (if status
+                  (cons `(,(stat:size status) ,input-file ,output-file) prev)
+                  prev))
+              '()
+              (video-input-files video)
+              (video-output-files video)))
+          ; sort by file size
+          (set! files (sort files (lambda (a b) (< (car a) (car b)))))
           (if video?
             `(div
                (video (@ (controls "controls")
                          (poster ,(site-prefix/ site (video-poster-url video)))
                          (id ,(video-id video)))
                       ,@(map
-                          (lambda (input-path output-path)
+                          (lambda (lst)
+                            (define input-path (list-ref lst 1))
+                            (define output-path (list-ref lst 2))
                             `(source (@ (src ,(site-prefix/ site output-path))
                                         (type ,(get-mime-type input-path)))))
-                          (video-input-files video)
-                          (video-output-files video)))
+                          files))
                ,@(let ((captions (video-captions video)))
                    (cond
                      ((not (null? captions))

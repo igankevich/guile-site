@@ -493,8 +493,13 @@
                               (site #f)
                               (pages-directory "src/notes")
                               (videos-directory "src/videos"))
-  `(,@(map (lambda (path) (make-symlink-kernel path #f #:site site))
-           (list-files videos-directory))
+  `(,@(fold
+        (lambda (path prev)
+          (if (string-suffix? ".scm" path)
+            prev
+            (cons (make-symlink-kernel path #f #:site site) prev)))
+        '()
+        (list-files videos-directory))
      ,(make-poster-kernel "Coming soon"
                           (format #f "~a/videos/coming-soon.png" (site-output-directory site)))
      ,@(map
