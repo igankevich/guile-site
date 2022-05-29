@@ -35,6 +35,7 @@
           (if video?
             `(div
                (video (@ (controls "controls")
+                         (preload "none")
                          (poster ,(site-prefix/ site (video-poster-url video)))
                          (id ,(video-id video)))
                       ,@(map
