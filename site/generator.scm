@@ -205,7 +205,8 @@
     `(,write-atom-feed
        ,write-rss-feed
        ,write-json-feed
-       ,write-sitemap))
+       ,write-sitemap
+      ))
   (make <kernel>
     #:name "feeds"
     #:input-files (map page-input-file pages)

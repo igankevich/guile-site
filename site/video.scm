@@ -7,6 +7,7 @@
   )
 
 (define-class <video> ()
+  (name #:init-keyword #:name #:accessor video-name #:init-value #f)
   (id #:init-keyword #:id #:accessor video-id #:init-value #f)
   (input-files #:init-keyword #:input-files #:accessor video-input-files #:init-value '())
   (output-files #:init-keyword #:output-files #:accessor video-output-files #:init-value '())
@@ -17,7 +18,8 @@
         (lambda (site video)
           (define video?
             (fold
-              (lambda (path prev) (if prev prev (file-exists? path)))
+              (lambda (path prev)
+                (if prev prev (file-exists? path)))
               #f
               (video-input-files video)))
           (define files

@@ -31,7 +31,7 @@
 (define %russian-non-breaking-space-regex-pre
   (make-regexp "\\s+(—)"))
 (define %russian-no-wrap
-  (make-regexp "\\b(\\w+[\\w—]+\\w+)\\b"))
+  (make-regexp "\\b(\\w+\\w+\\w+)\\b"))
 
 (define (russian-text? str)
   (regexp-exec %russian-regex str))
@@ -62,7 +62,7 @@
 (define (typeset-russian str)
   (set! str (regexp-replace str %russian-non-breaking-space-regex 1 "\u00A0" 2))
   (set! str (regexp-replace str %russian-non-breaking-space-regex-pre "\u00A0" 1))
-  (set! str (regexp-replace/sxml str %russian-no-wrap '(span (@ (class "nowrap")) 1)))
+  ;(set! str (regexp-replace/sxml str %russian-no-wrap '(span (@ (class "nowrap")) 1)))
   str)
 
 (define (typeset-english str)
@@ -333,13 +333,13 @@
                      `(a (@ (href ,url)) (code ,name)))))
       (image . ,(lambda (tag . kids)
                   (let* ((path (list-ref kids 0))
-                         (text (if (>= (length kids) 2) (list-ref kids 1) ""))
+                         (text (if (>= (length kids) 2) (list-ref kids 1) #f))
                          (webp (if (string-suffix? ".png" path)
                                  `((source (@ (srcset ,(site-prefix/ site (replace-extension path "webp")))
                                               (type "image/webp"))))
                                  '())))
                     (page-add-input-files page `(,(string-append "src/" path)))
-                    (if (string-null? text)
+                    (if (not text)
                       `(picture
                          ,@webp
                          (img (@ (src ,(site-prefix/ site path))

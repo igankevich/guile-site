@@ -24,7 +24,8 @@
              make-videos-kernels
              make-xournalpp-kernel
              make-xournalpp-thumbnail-kernel
-             make-pdf-thumbnail-kernel))
+             make-pdf-thumbnail-kernel
+             make-generate-git-kernel))
 
 ; https://loqbooq.app/blog/add-favicon-modern-browser-guide
 (define-public %favicon-sizes '("16x16" "32x32" "48x48" "192x192" "167x167" "180x180"))
@@ -581,6 +582,39 @@
                              '())
                          ,output-path))
         (system* "optipng" "-quiet" output-path)))))
+
+(define (make-generate-git-kernel input-directory site)
+  (define output-directory
+    (site-output-directory site (string-append (basename input-directory) ".git")))
+  (define input-files '())
+  (nftw input-directory
+        (lambda (filename statinfo flag base level)
+          (if (not (string-prefix? "." (basename filename)))
+            (set! input-files (cons filename input-files)))
+          #t)
+        'mount
+        'physical)
+  (make <kernel>
+    #:name "generate-git"
+    #:input-files input-files
+    #:output-files `(,(string-append output-directory "/HEAD"))
+    #:proc (lambda (kernel)
+             (define (git . args)
+               (apply system* `("git" "-C" ,output-directory ,@args)))
+             (system* "rsync" "-a"
+                      "--exclude" "*~"
+                      "--exclude" "build"
+                      "--delete" "--delete-excluded"
+                      input-directory output-directory)
+             (git "init" "--quiet")
+             (git "add" "--all")
+             (git "commit" "-a" "-m" "initial" "--quiet")
+             (git "update-server-info")
+             (system* "sh" "-c" (format #f "outdir='~a'
+rm -rf $outdir/*
+mv $outdir/.git/* $outdir
+rm -d $outdir/.git" output-directory))
+             )))
 
 
 ; TODO https://github.com/pts/pdfsizeopt
