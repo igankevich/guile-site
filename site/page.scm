@@ -209,269 +209,341 @@
           (else
             '()))
         `(img (@ (class "image") (alt "Coming soon") (src ,coming-soon-url))))))
-  (pre-post-order sxml
-    `((comment . ,(lambda (tag . kids) `(span (@ (class "syntax-comment")) ,@kids)))
-      (keyword . ,(lambda (tag . kids) `(span (@ (class "syntax-keyword")) ,@kids)))
-      (string . ,(lambda (tag . kids) `(span (@ (class "syntax-string")) ,@kids)))
-      (slide . ,(lambda (tag . kids)
-                  (set! slide-number (+ 1 slide-number))
-                  `(div (@ (class "slide") (id ,(format #f "slide-~a" slide-number)))
-                        (div (@ (class "slide-box"))
-                             ,@kids))))
-      (scala . ,(lambda (tag . kids)
+  (define (process-sxml sxml)
+    (pre-post-order sxml
+      `((comment . ,(lambda (tag . kids) `(span (@ (class "syntax-comment")) ,@kids)))
+        (keyword . ,(lambda (tag . kids) `(span (@ (class "syntax-keyword")) ,@kids)))
+        (string . ,(lambda (tag . kids) `(span (@ (class "syntax-string")) ,@kids)))
+        (slide . ,(lambda (tag . kids)
+                    (set! slide-number (+ 1 slide-number))
+                    `(div (@ (class "slide") (id ,(format #f "slide-~a" slide-number)))
+                          (div (@ (class "slide-box"))
+                               ,@kids))))
+        (scala . ,(lambda (tag . kids)
+                    (define keywords
+                      '("public" "private" "protected"
+                        "val" "var" "lazy" "def" "override"
+                        "throw" "throws" "try" "catch" "finally"
+                        "for" "do" "while"
+                        "this" "super" "new" "true" "false"
+                        "class" "extends" "implements" "abstract"
+                        "package" "import"))
+                    (define keyword-characters "_$")
+                    (highlight-code kids
+                                    #:keywords keywords
+                                    #:keyword-characters keyword-characters)
+                    ))
+        (java . ,(lambda (tag . kids)
+                   (define keywords
+                     '("public" "private" "protected"
+                       "void" "boolean" "char" "short" "int" "long" "float" "double"
+                       "throw" "throws" "try" "catch" "finally"
+                       "for" "do" "while" "return"
+                       "this" "super" "new" "true" "false"
+                       "class" "extends" "implements" "abstract"
+                       "package" "import"))
+                   (define keyword-characters "_$")
+                   (highlight-code kids
+                                   #:keywords keywords
+                                   #:keyword-characters keyword-characters)
+                   ))
+        (cpp . ,(lambda (tag . kids)
                   (define keywords
                     '("public" "private" "protected"
-                      "val" "var" "lazy" "def" "override"
-                      "throw" "throws" "try" "catch" "finally"
-                      "for" "do" "while"
-                      "this" "super" "new" "true" "false"
-                      "class" "extends" "implements" "abstract"
-                      "package" "import"))
-                  (define keyword-characters "_$")
+                      "void" "bool" "char" "short" "int" "long" "float" "double"
+                      "unsigned" "signed" "const" "noexcept" "auto"
+                      "uint8_t" "uint16_t" "uint32_t" "uint64_t"
+                      "int8_t" "int16_t" "int32_t" "int64_t"
+                      "size_t" "ptrdiff_t"
+                      "reinterpret_cast" "static_cast" "dynamic_cast" "const_cast"
+                      "throw" "throws" "try" "catch"
+                      "for" "do" "while" "return" "break" "continue" "if" "else"
+                      "this" "new" "delete" "true" "false" "nullptr"
+                      "class" "virtual" "struct" "inline" "template"
+                      "sizeof" "alignof" "typename" "default" "operator"
+                      "#include" "#define" "#if" "#else" "#elif" "#endif" "#pragma"
+                      "#error"))
+                  (define keyword-characters "_$#")
                   (highlight-code kids
                                   #:keywords keywords
-                                  #:keyword-characters keyword-characters)
-                  ))
-      (java . ,(lambda (tag . kids)
+                                  #:keyword-characters keyword-characters
+                                  #:macro-prefix "#")))
+        (sh . ,(lambda (tag . kids)
                  (define keywords
-                   '("public" "private" "protected"
-                     "void" "boolean" "char" "short" "int" "long" "float" "double"
-                     "throw" "throws" "try" "catch" "finally"
-                     "for" "do" "while" "return"
-                     "this" "super" "new" "true" "false"
-                     "class" "extends" "implements" "abstract"
-                     "package" "import"))
-                 (define keyword-characters "_$")
+                   '("export" "if" "then" "fi" "elif" "else" "case" "esac" "in" "set"
+                     "break" "for" "do" "done" "while" "shift"
+                     "cd" "echo" "exit"
+                     "source" "alias" "return"))
+                 (define keyword-characters "_")
                  (highlight-code kids
                                  #:keywords keywords
-                                 #:keyword-characters keyword-characters)
+                                 #:keyword-characters keyword-characters
+                                 #:comment-character #\#)
                  ))
-      (cpp . ,(lambda (tag . kids)
-                (define keywords
-                  '("public" "private" "protected"
-                    "void" "bool" "char" "short" "int" "long" "float" "double"
-                    "unsigned" "signed" "const" "noexcept" "auto"
-                    "uint8_t" "uint16_t" "uint32_t" "uint64_t"
-                    "int8_t" "int16_t" "int32_t" "int64_t"
-                    "size_t" "ptrdiff_t"
-                    "reinterpret_cast" "static_cast" "dynamic_cast" "const_cast"
-                    "throw" "throws" "try" "catch"
-                    "for" "do" "while" "return" "break" "continue" "if" "else"
-                    "this" "new" "delete" "true" "false" "nullptr"
-                    "class" "virtual" "struct" "inline" "template"
-                    "sizeof" "alignof" "typename" "default" "operator"
-                    "#include" "#define" "#if" "#else" "#elif" "#endif" "#pragma"
-                    "#error"))
-                (define keyword-characters "_$#")
-                (highlight-code kids
-                                #:keywords keywords
-                                #:keyword-characters keyword-characters
-                                #:macro-prefix "#")))
-      (sh . ,(lambda (tag . kids)
-               (define keywords
-                 '("export" "if" "then" "fi" "elif" "else" "case" "esac" "in" "set"
-                   "break" "for" "do" "done" "while" "shift"
-                   "cd" "echo" "exit"
-                   "source" "alias" "return"))
-               (define keyword-characters "_")
-               (highlight-code kids
-                               #:keywords keywords
-                               #:keyword-characters keyword-characters
-                               #:comment-character #\#)
-               ))
-      (meson . ,(lambda (tag . kids)
+        (meson . ,(lambda (tag . kids)
+                    (define keywords
+                      '("if" "else" "endif" "foreach" "endforeach"
+                        "project" "meson" "subdir" "executable"
+                        "files" "import" "dependency"))
+                    (define keyword-characters "_")
+                    (highlight-code kids
+                                    #:keywords keywords
+                                    #:keyword-characters keyword-characters
+                                    #:comment-character #\#)))
+        (pc . ,(lambda (tag . kids)
+                 (define keywords
+                   '("Name:" "Description:" "Version:" "Libs:" "Cflags:"))
+                 (define keyword-characters "_:")
+                 (highlight-code kids
+                                 #:keywords keywords
+                                 #:keyword-characters keyword-characters
+                                 #:comment-character #\#)))
+        (asm . ,(lambda (tag . kids)
                   (define keywords
-                    '("if" "else" "endif" "foreach" "endforeach"
-                      "project" "meson" "subdir" "executable"
-                      "files" "import" "dependency"))
-                  (define keyword-characters "_")
+                    '("movq" "syscall" "ret" ".global" ".type" ".hidden"))
+                  (define keyword-characters "_.")
                   (highlight-code kids
                                   #:keywords keywords
                                   #:keyword-characters keyword-characters
                                   #:comment-character #\#)))
-      (pc . ,(lambda (tag . kids)
-               (define keywords
-                 '("Name:" "Description:" "Version:" "Libs:" "Cflags:"))
-               (define keyword-characters "_:")
-               (highlight-code kids
-                               #:keywords keywords
-                               #:keyword-characters keyword-characters
-                               #:comment-character #\#)))
-      (asm . ,(lambda (tag . kids)
-                (define keywords
-                  '("movq" "syscall" "ret" ".global" ".type" ".hidden"))
-                (define keyword-characters "_.")
-                (highlight-code kids
-                                #:keywords keywords
-                                #:keyword-characters keyword-characters
-                                #:comment-character #\#)))
-      (pygmentize . ,(lambda (tag . kids)
-                       (define lexer (list-ref kids 0))
-                       (define code (string-trim-both (string-join (cdr kids) "")))
-                       (define tmp (mkstemp! (string-copy "/dev/shm/pygmentize-XXXXXX")))
-                       (display code tmp)
-                       (force-output tmp)
-                       (define tmp-filename (port-filename tmp))
-                       (define port (open-pipe* OPEN_BOTH "pygmentize"
-                                                "-f" "html"
-                                                "-l" lexer
-                                                "-O" "nowrap,classprefix=pygmentize-"
-                                                tmp-filename))
-                       (close-port tmp)
-                       (define output (get-string-all port))
-                       (define exit-code (status:exit-val (close-pipe port)))
-                       (delete-file tmp-filename)
-                       (if (= exit-code 0)
-                         (list-ref (xml->sxml
-                                     (format #f "<pre class=\"~a\">~a</pre>" lexer output)) 1)
-                         '())))
-      (man-ru . ,(lambda (tag . kids)
-                   (let* ((section (list-ref kids 0))
-                          (name (list-ref kids 1))
-                          (url (format #f "https://mirror.cmmshq.ru/spc/man/man~a/~a.~a.html"
-                                       section name section)))
-                     `(a (@ (href ,url)) (code ,name)))))
-      (image . ,(lambda (tag . kids)
-                  (let* ((path (list-ref kids 0))
-                         (text (if (>= (length kids) 2) (list-ref kids 1) #f))
-                         (webp (if (string-suffix? ".png" path)
-                                 `((source (@ (srcset ,(site-prefix/ site (replace-extension path "webp")))
-                                              (type "image/webp"))))
-                                 '())))
-                    (page-add-input-files page `(,(string-append "src/" path)))
-                    (if (not text)
-                      `(picture
-                         ,@webp
-                         (img (@ (src ,(site-prefix/ site path))
-                                 (alt ,(site-prefix/ site path)))))
-                      `(figure (@ (class "center"))
-                               (picture
-                                 ,@webp
-                                 (img (@ (src ,(site-prefix/ site path)) (alt ,text))))
-                               (figcaption ,(cdr kids)))))))
-      (nbsp . ,(lambda (tag . kids) "\u00a0"))
-      (emdash . ,(lambda (tag . kids) "\u00a0—"))
-      (math . ,(lambda (tag . kids)
-                 `(span (@ (class "math")) ,@kids)))
-      (display-math . ,(lambda (tag . kids)
-                 `(span (@ (class "display-math")) ,@kids)))
-      (href . ,(lambda (tag . kids)
-                 (if (not (null? kids))
-                   (let ((uri (string->uri (car kids))))
-                     (if (string-contains (if uri (uri-path uri) (car kids)) "//")
-                       (format (current-error-port) "Warning, double slash in URL: ~a\n" (uri-path uri)))))
-                 (cons tag kids)))
-      (video-figure *preorder* . ,(lambda (tag . kids)
-                                    (let ((path (list-ref kids 0))
-                                          (text (list-ref kids 1)))
-                                      `(figure (@ (class "text-center"))
-                                               (video (@ (class "img-fluid rounded") (controls "") (loop "loop"))
-                                                      (source (@ (src ,path) (type "video/ogg"))))
-                                               (figcaption (@ (class "text-muted")) ,text)))))
-      (video/captions . ,video-captions-rule)
-      (video-captions . ,video-captions-rule)
-      (video-object . ,(lambda (tag . kids)
-                         (define site (list-ref kids 0))
-                         (define video (list-ref kids 1))
-                         ((video-sxml video) site video)))
-      (blackboard . ,(lambda (tag . kids)
-                       (define %site (list-ref kids 0))
-                       (define number (list-ref kids 1))
-                       (define name (list-ref kids 2))
-                       (define thumbnail-name (format #f "~a-~a.png" number name))
-                       (define thumbnail-path (site-prefix/ %site "xopp" thumbnail-name))
-                       (define pdf-name (format #f "~a-~a.pdf" number name))
-                       (define path (site-output-path %site (string-append "src/xopp/" thumbnail-name)))
-                       ;(format #t "thumbnail-path ~a\n" path)
-                       `((a (@ (href ,(site-prefix/ %site "xopp" pdf-name))) 
-                            (img (@ (src ,thumbnail-path)
-                                    (alt ,(format #f "~a thumbnail." name))
-                                    (class "xopp-thumbnail")))))))
-      (paragraph . ,(lambda (tag . kids)
-                      (apply make-paragraph `("" tag ,@kids))))
-      (continue . ,(lambda (tag . kids)
-                     `(p (@ (class "no-indent")) ,@kids)))
-      (first-paragraph . ,(lambda (tag . kids)
-                            (apply make-paragraph `("no-indent" tag ,@kids))))
-      (listing . ,(lambda (tag . kids)
-                    (apply make-paragraph `("no-indent" tag (pre (code ,@kids))))))
-      (paragraph-math . ,(lambda (tag . kids)
-                           (apply make-paragraph `("no-indent" tag (span (@ (class "math")) ,@kids)))))
-      (section-number . ,(lambda (tag . kids)
-                           (define n (page-number page))
-                           `(span (@ (class ,(format #f "section-~a" (if (< n 10) 4 5))))
-                                  ,(format #f "§\u00a0~a.\u00a0" n))))
-      (page-title . ,(lambda (tag . kids) (page-title page)))
-      (paragraph-link . ,(lambda (tag . kids)
-                           (define n (car kids))
-                           `(a (@ (class "paragraph-link")
-                                  (href ,(format #f "#~a" n)))
-                               (span (@ (class "no-underline")) "¶")
-                               (span (@ (class "underline")) ,kids))))
-      (points . ,(lambda (tag . kids)
-                   (define n (first kids))
-                   (define m
-                     (if (>= (length kids) 2)
-                       (second kids)
-                       n))
-                   (define text
+        (pygmentize . ,(lambda (tag . kids)
+                         (define lexer (list-ref kids 0))
+                         (define code (string-trim-both (string-join (cdr kids) "")))
+                         (define tmp (mkstemp! (string-copy "/dev/shm/pygmentize-XXXXXX")))
+                         (display code tmp)
+                         (force-output tmp)
+                         (define tmp-filename (port-filename tmp))
+                         (define port (open-pipe* OPEN_BOTH "pygmentize"
+                                                  "-f" "html"
+                                                  "-l" lexer
+                                                  "-O" "nowrap,classprefix=pygmentize-"
+                                                  tmp-filename))
+                         (close-port tmp)
+                         (define output (get-string-all port))
+                         (define exit-code (status:exit-val (close-pipe port)))
+                         (delete-file tmp-filename)
+                         (if (= exit-code 0)
+                           (list-ref (xml->sxml
+                                       (format #f "<pre class=\"~a\">~a</pre>" lexer output)) 1)
+                           '())))
+        (man-ru . ,(lambda (tag . kids)
+                     (let* ((section (list-ref kids 0))
+                            (name (list-ref kids 1))
+                            (url (format #f "https://mirror.cmmshq.ru/spc/man/man~a/~a.~a.html"
+                                         section name section)))
+                       `(a (@ (href ,url)) (code ,name)))))
+        (image . ,(lambda (tag . kids)
+                    (let* ((path (list-ref kids 0))
+                           (text (if (>= (length kids) 2) (list-ref kids 1) #f))
+                           (webp (if (string-suffix? ".png" path)
+                                   `((source (@ (srcset ,(site-prefix/ site (replace-extension path "webp")))
+                                                (type "image/webp"))))
+                                   '())))
+                      (page-add-input-files page `(,(string-append "src/" path)))
+                      (if (not text)
+                        `(picture
+                           ,@webp
+                           (img (@ (src ,(site-prefix/ site path))
+                                   (alt ,(site-prefix/ site path)))))
+                        `(figure (@ (class "center"))
+                                 (picture
+                                   ,@webp
+                                   (img (@ (src ,(site-prefix/ site path)) (alt ,text))))
+                                 (figcaption ,(cdr kids)))))))
+        (nbsp . ,(lambda (tag . kids) "\u00a0"))
+        (emdash . ,(lambda (tag . kids) "\u00a0—"))
+        (math . ,(lambda (tag . kids)
+                   `(span (@ (class "math")) ,@kids)))
+        (display-math . ,(lambda (tag . kids)
+                           `(span (@ (class "display-math")) ,@kids)))
+        (href . ,(lambda (tag . kids)
+                   (if (not (null? kids))
+                     (let ((uri (string->uri (car kids))))
+                       (if (string-contains (if uri (uri-path uri) (car kids)) "//")
+                         (format (current-error-port) "Warning, double slash in URL: ~a\n" (uri-path uri)))))
+                   (cons tag kids)))
+        (video-figure *preorder* . ,(lambda (tag . kids)
+                                      (let ((path (list-ref kids 0))
+                                            (text (list-ref kids 1)))
+                                        `(figure (@ (class "text-center"))
+                                                 (video (@ (class "img-fluid rounded") (controls "") (loop "loop"))
+                                                        (source (@ (src ,path) (type "video/ogg"))))
+                                                 (figcaption (@ (class "text-muted")) ,text)))))
+        (video/captions . ,video-captions-rule)
+        (video-captions . ,video-captions-rule)
+        (video-object . ,(lambda (tag . kids)
+                           (define site (list-ref kids 0))
+                           (define video (list-ref kids 1))
+                           ((video-sxml video) site video)))
+        (blackboard . ,(lambda (tag . kids)
+                         (define %site (list-ref kids 0))
+                         (define number (list-ref kids 1))
+                         (define name (list-ref kids 2))
+                         (define thumbnail-name (format #f "~a-~a.png" number name))
+                         (define thumbnail-path (site-prefix/ %site "xopp" thumbnail-name))
+                         (define pdf-name (format #f "~a-~a.pdf" number name))
+                         (define path (site-output-path %site (string-append "src/xopp/" thumbnail-name)))
+                         ;(format #t "thumbnail-path ~a\n" path)
+                         `((a (@ (href ,(site-prefix/ %site "xopp" pdf-name))) 
+                              (img (@ (src ,thumbnail-path)
+                                      (alt ,(format #f "~a thumbnail." name))
+                                      (class "xopp-thumbnail")))))))
+        (paragraph . ,(lambda (tag . kids)
+                        (apply make-paragraph `("" tag ,@kids))))
+        (continue . ,(lambda (tag . kids)
+                       `(p (@ (class "no-indent")) ,@kids)))
+        (first-paragraph . ,(lambda (tag . kids)
+                              (apply make-paragraph `("no-indent" tag ,@kids))))
+        (listing . ,(lambda (tag . kids)
+                      (apply make-paragraph `("no-indent" tag (pre (code ,@kids))))))
+        (paragraph-math . ,(lambda (tag . kids)
+                             (apply make-paragraph `("no-indent" tag (span (@ (class "math")) ,@kids)))))
+        (section-number . ,(lambda (tag . kids)
+                             (define n (page-number page))
+                             `(span (@ (class ,(format #f "section-~a" (if (< n 10) 4 5))))
+                                    ,(format #f "§\u00a0~a.\u00a0" n))))
+        (page-title . ,(lambda (tag . kids) (page-title page)))
+        (paragraph-link . ,(lambda (tag . kids)
+                             (define n (car kids))
+                             `(a (@ (class "paragraph-link")
+                                    (href ,(format #f "#~a" n)))
+                                 (span (@ (class "no-underline")) "¶")
+                                 (span (@ (class "underline")) ,kids))))
+        (points . ,(lambda (tag . kids)
+                     (define n (first kids))
+                     (define m
+                       (if (>= (length kids) 2)
+                         (second kids)
+                         n))
+                     (define text
+                       (cond
+                         ((= (remainder n 10) 1) "балл")
+                         ((<= (remainder n 10) 4) "балла")
+                         (else "баллов")))
+                     `(span (@ (class ,(format #f "points points-~a" m)))
+                            ,(format #f "~a ~a" n text))))
+        (tasks . ,(lambda (tag . kids)
+                    `(h1 (@ (class "tasks") (id "tasks")) ,kids)))
+        (task . ,(lambda (tag . kids)
+                   `(h2 (span (@ (class "task-number"))) ,kids)))
+        (inline-svg . ,(lambda (tag . kids)
+                         (define num-kids (length kids))
+                         (define site (if (= num-kids 2) (list-ref kids 0) #f))
+                         (define path (list-ref kids (if (= num-kids 2) 1 0)))
+                         (page-add-input-files page `(,path))
+                         `(,(call-with-input-file
+                              (if site
+                                (site-output-directory site path)
+                                path)
+                              (lambda (port)
+                                (pre-post-order
+                                  (cddr (xml->sxml port
+                                                   #:trim-whitespace? #t
+                                                   #:declare-namespaces? #f
+                                                   #:namespaces %svg-namespaces))
+                                  `((*default* . ,(lambda (tag . kids)
+                                                    (define s (symbol->string tag))
+                                                    (if (string-prefix? "svg:" s)
+                                                      `(,(string->symbol (substring s 4 (string-length s))) ,@kids)
+                                                      `(,tag ,@kids))))
+                                    (*text* . ,(lambda (_ txt) txt)))
+                                  ))))))
+        (link . ,(lambda (tag . kids)
+                   (define stylesheet? #f)
+                   ;(format #t "link ~a\n" kids)
+                   (pre-post-order kids
+                     `((rel . ,(lambda (tag . kids)
+                                 (if (string=? (car kids) "stylesheet")
+                                   (set! stylesheet? #t))
+                                 `(,tag ,@kids)))
+                       (*default* . ,(lambda (tag . kids) `(,tag ,@kids)))
+                       (*text* . ,(lambda (_ txt) txt))))
+                   (if stylesheet?
+                     (cons tag
+                           (pre-post-order kids
+                             `((rel . ,(lambda (tag . kids)
+                                         (if (string=? (car kids) "stylesheet")
+                                           (set! stylesheet? #t))
+                                         `(,tag ,@kids)))
+                               (*default* . ,(lambda (tag . kids) `(,tag ,@kids)))
+                               (*text* . ,(lambda (_ txt) txt)))))
+                     (cons tag kids))))
+        (table-of-contents . ,(lambda (tag . kids)
+                                (define toc '())
+                                (define (get-text kids)
+                                  (define kids-2
+                                    (cond
+                                      ((null? kids) '())
+                                      ((null? (car kids)) kids)
+                                      ((not (list? (car kids))) kids)
+                                      ((eq? (caar kids) '@) (cdr kids))
+                                      (else kids)))
+                                  (process-sxml kids-2))
+                                (define (get-id kids-2)
+                                  (format #t "tag = ~a\n" (car kids-2))
+                                  (define kids (cdr (process-sxml kids-2)))
+                                  (define id
+                                    (cond
+                                      ((null? kids) '())
+                                      ((null? (car kids)) '())
+                                      ((not (list? (car kids))) '())
+                                      ((eq? (caar kids) '@)
+                                       (format #t "kids = ~a\n" (cdr (car kids)))
+                                       (filter (lambda (pair) (eq? (car pair) 'id)) (cdr (car kids))))
+                                      (else '())))
+                                  (format #t "id = ~a\n" id)
+                                  (if (null? id)
+                                    id
+                                    (car (cdr (car id)))))
+                                (pre-post-order sxml
+                                  `((h1 . ,(lambda (tag . kids)
+                                             (set! toc (append toc `((1 ,(get-id (cons tag kids)) ,(get-text kids)))))
+                                             `(,tag ,@kids)))
+                                    (h2 . ,(lambda (tag . kids)
+                                             (set! toc (append toc `((2 ,(get-id (cons tag kids)) ,(get-text kids)))))
+                                             `(,tag ,@kids)))
+                                    (h3 . ,(lambda (tag . kids)
+                                             (set! toc (append toc `((3 ,(get-id (cons tag kids)) ,(get-text kids)))))
+                                             `(,tag ,@kids)))
+                                    (h4 . ,(lambda (tag . kids)
+                                             (set! toc (append toc `((4 ,(get-id (cons tag kids)) ,(get-text kids)))))
+                                             `(,tag ,@kids)))
+                                    (h5 . ,(lambda (tag . kids)
+                                             (set! toc (append toc `((5 ,(get-id (cons tag kids)) ,(get-text kids)))))
+                                             `(,tag ,@kids)))
+                                    (h6 . ,(lambda (tag . kids)
+                                             (set! toc (append toc `((6 ,(get-id (cons tag kids)) ,(get-text kids)))))
+                                             `(,tag ,@kids)))
+                                    (tasks . ,(lambda (tag . kids)
+                                                (set! toc (append toc `((1 ,(get-id (cons tag kids)) ,(get-text kids)))))
+                                                `(,tag ,@kids)))
+                                    (task . ,(lambda (tag . kids)
+                                               (set! toc (append toc `((2 ,(get-id (cons tag kids)) ,(get-text kids)))))
+                                               `(,tag ,@kids)))
+                                    (points . ,(lambda (tag . kids) '()))
+                                    (section-number . ,(lambda (tag . kids) '()))
+                                    ;(page-title . ,(lambda (tag . kids) (page-title page)))
+                                    (*default* . ,(lambda (tag . kids) `(,tag ,@kids)))
+                                    (*text* . ,(lambda (_ txt) txt))))
+                                `((div (@ (class "toc"))
+                                       (h1 (@ (class "toc-title")) ,@kids)
+                                       (ul (@ (class "toc-list"))
+                                           ,(map
+                                              (lambda (entry)
+                                                (define level (list-ref entry 0))
+                                                (define id (list-ref entry 1))
+                                                (define text (list-ref entry 2))
+                                                `(li ,(make-string level (integer->char #x00a0))
+                                                     ,(if (not (null? id))
+                                                        `(a (@ (href ,(format #f "#~a" id))) ,text)
+                                                        text)))
+                                              toc))))))
+        (*default* . ,(lambda (tag . kids) `(,tag ,@kids)))
+        (*text* . ,(lambda (_ txt)
                      (cond
-                       ((= (remainder n 10) 1) "балл")
-                       ((<= (remainder n 10) 4) "балла")
-                       (else "баллов")))
-                   `(span (@ (class ,(format #f "points points-~a" m)))
-                          ,(format #f "~a ~a" n text))))
-      (tasks . ,(lambda (tag . kids)
-                  `(h1 (@ (class "tasks") (id "tasks")) ,kids)))
-      (task . ,(lambda (tag . kids)
-                 `(h2 (span (@ (class "task-number"))) ,kids)))
-      (inline-svg . ,(lambda (tag . kids)
-                       (define num-kids (length kids))
-                       (define site (if (= num-kids 2) (list-ref kids 0) #f))
-                       (define path (list-ref kids (if (= num-kids 2) 1 0)))
-                       (page-add-input-files page `(,path))
-                       `(,(call-with-input-file
-                            (if site
-                              (site-output-directory site path)
-                              path)
-                            (lambda (port)
-                              (pre-post-order
-                                (cddr (xml->sxml port
-                                                 #:trim-whitespace? #t
-                                                 #:declare-namespaces? #f
-                                                 #:namespaces %svg-namespaces))
-                                `((*default* . ,(lambda (tag . kids)
-                                                  (define s (symbol->string tag))
-                                                  (if (string-prefix? "svg:" s)
-                                                    `(,(string->symbol (substring s 4 (string-length s))) ,@kids)
-                                                    `(,tag ,@kids))))
-                                  (*text* . ,(lambda (_ txt) txt)))
-                                ))))))
-      (link . ,(lambda (tag . kids)
-                 (define stylesheet? #f)
-                 ;(format #t "link ~a\n" kids)
-                 (pre-post-order kids
-                   `((rel . ,(lambda (tag . kids)
-                               (if (string=? (car kids) "stylesheet")
-                                 (set! stylesheet? #t))
-                               `(,tag ,@kids)))
-                     (*default* . ,(lambda (tag . kids) `(,tag ,@kids)))
-                     (*text* . ,(lambda (_ txt) txt))))
-                 (if stylesheet?
-                   (cons tag
-                         (pre-post-order kids
-                           `((rel . ,(lambda (tag . kids)
-                                       (if (string=? (car kids) "stylesheet")
-                                         (set! stylesheet? #t))
-                                       `(,tag ,@kids)))
-                             (*default* . ,(lambda (tag . kids) `(,tag ,@kids)))
-                             (*text* . ,(lambda (_ txt) txt)))))
-                   (cons tag kids))))
-      (*default* . ,(lambda (tag . kids) `(,tag ,@kids)))
-      (*text* . ,(lambda (_ txt)
-                   (cond
-                     ((and (string? txt) (russian-text? txt)) (typeset-russian txt))
-                     (else txt)))))))
+                       ((and (string? txt) (russian-text? txt)) (typeset-russian txt))
+                       (else txt)))))))
+  (process-sxml sxml))
 
 (define (page-head-common/default site page)
   (post-process-sxml 
