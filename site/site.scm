@@ -55,6 +55,12 @@
        ,(basename path))
     "/"))
 
+(define (remove-site-output-directory path site)
+  (define prefix (string-append (site-output-directory site) "/"))
+  (if (string-prefix? prefix path)
+    (substring path (string-length prefix))
+    path))
+
 (define site-output-path site-file-output-directory)
 
 (define (replace-extension path new-extension)

@@ -335,21 +335,30 @@
         (image . ,(lambda (tag . kids)
                     (let* ((path (list-ref kids 0))
                            (text (if (>= (length kids) 2) (list-ref kids 1) #f))
+                           (url (if (>= (length kids) 3) (list-ref kids 2) #f))
                            (webp (if (string-suffix? ".png" path)
                                    `((source (@ (srcset ,(site-prefix/ site (replace-extension path "webp")))
                                                 (type "image/webp"))))
                                    '())))
                       (page-add-input-files page `(,(string-append "src/" path)))
                       (if (not text)
-                        `(picture
-                           ,@webp
-                           (img (@ (src ,(site-prefix/ site path))
-                                   (alt ,(site-prefix/ site path)))))
+                        (set! text (site-prefix/ site path)))
+                      (define picture
+                        (if url
+                          `(a (@ (href ,(site-prefix/ site url)))
+                              (picture
+                                ,@webp
+                                (img (@ (src ,(site-prefix/ site path))
+                                        (alt ,text)))))
+                          `(picture
+                             ,@webp
+                             (img (@ (src ,(site-prefix/ site path))
+                                     (alt ,text))))))
+                      (if (not text)
+                        picture
                         `(figure (@ (class "center"))
-                                 (picture
-                                   ,@webp
-                                   (img (@ (src ,(site-prefix/ site path)) (alt ,text))))
-                                 (figcaption ,(cdr kids)))))))
+                                 ,picture
+                                 (figcaption ,text))))))
         (nbsp . ,(lambda (tag . kids) "\u00a0"))
         (emdash . ,(lambda (tag . kids) "\u00a0—"))
         (math . ,(lambda (tag . kids)

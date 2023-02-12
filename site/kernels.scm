@@ -9,6 +9,7 @@
   #:use-module (site site)
   #:use-module (site page)
   #:use-module (srfi srfi-1)
+  #:use-module (haunt html)
   #:export (make-symlink-kernel
              make-inkscape-kernel
              make-webp-kernel
@@ -25,7 +26,11 @@
              make-xournalpp-kernel
              make-xournalpp-thumbnail-kernel
              make-pdf-thumbnail-kernel
-             make-generate-git-kernel))
+             make-generate-git-kernel
+             make-viewstl-generator
+             make-viewstl-js-kernels
+             make-viewstl-kernel
+             ))
 
 ; https://loqbooq.app/blog/add-favicon-modern-browser-guide
 (define-public %favicon-sizes '("16x16" "32x32" "48x48" "192x192" "167x167" "180x180"))
@@ -336,6 +341,17 @@
       '()
       (scandir (format #f "~a/fonts" katex)))))
 
+(define-public (make-viewstl-js-kernels site)
+  (define viewstl (guix-build site "-e" "(@ (gnu packages site) viewstl)"))
+  (define out (site-output-directory site))
+  (map
+    (lambda (name)
+      (define path (string-append viewstl "/" name))
+      (make-symlink-kernel path (format #f "~a/viewstl/~a" out (basename path))))
+    (scandir viewstl (lambda (name)
+                       (or (string-suffix? ".js" name)
+                           (string-suffix? ".js.map" name))))))
+
 (define* (make-julia-mono-kernels site #:optional (output-subdirectory "fonts"))
   (define julia-mono (guix-build site "-e" "(@ (gnu packages fonts) font-juliamono)"))
   (define out (site-output-directory site))
@@ -616,5 +632,67 @@ mv $outdir/.git/* $outdir
 rm -d $outdir/.git" output-directory))
              )))
 
+(define* (make-viewstl-kernel input-file #:optional (output-file #f)
+                              #:key (site #f))
+  (set! output-file (replace-extension input-file "html"))
+  (define stl-output-path (remove-site-output-directory input-file site))
+  (define js-output-path (replace-extension output-file "js"))
+  (define js-url (basename js-output-path))
+  (define css-output-path (replace-extension output-file "css"))
+  (define css-url (basename css-output-path))
+  (make <kernel>
+    #:name "viewstl"
+    #:input-files `(,input-file)
+    #:output-files `(,output-file ,js-output-path ,css-output-path)
+    #:proc (lambda (kernel)
+             (define input-path (car (kernel-input-files kernel)))
+             (define output-path (car (kernel-output-files kernel)))
+             (mkdir-p (dirname output-path))
+             (call-with-output-file js-output-path
+               (lambda (port)
+                 (format port "var stl = document.getElementById('stl');\n")
+                 (format port "var config = {models:[{id: 0, filename:'~a/~a'}]};\n"
+                         (site-prefix site) stl-output-path)
+                 (format port "var stlViewer = new StlViewer(stl, config);\n")
+                 (format port "var stlDisplay = document.getElementById('stl-display');\n")
+                 (format port "var updateDisplay = function () { stlViewer.set_display(0, stlDisplay.value); }\n")
+                 (format port "stlDisplay.addEventListener('change', updateDisplay);\n")
+                 ))
+             (call-with-output-file css-output-path
+               (lambda (port)
+                 (format port ".stl-container { width: 100vw; height: 100vh; margin: 0 0 0 0; }")
+                 (format port ".stl-buttons { width: auto; height: auto; position: absolute; top: 0px; left: 0px; }")))
+             (define sxml
+               `((doctype html)
+                 (html (@ (lang "ru"))
+                       (head
+                         (meta (@ (charset "utf-8")))
+                         (meta (@ (name "viewport")
+                                  (content "width=device-width, initial-scale=1, shrink-to-fit=no")))
+                         (meta (@ (http-equiv "X-UA-Compatible") (content "IE=edge")))
+                         (link (@ (rel "stylesheet") (href ,css-url)))
+                         (title ,(basename input-file)))
+                       (body (@ (lang "ru"))
+                             (div (@ (id "stl") (class "stl-container")))
+                             (div (@ (class "stl-buttons"))
+                                  (select (@ (id "stl-display"))
+                                          (option (@ (value "flat")) "Плоское тело")
+                                          (option (@ (value "smooth")) "Сглаженное тело")
+                                          (option (@ (value "wireframe")) "Каркас")))
+                             (script (@ (src ,(format #f "~a/viewstl/stl_viewer.min.js"
+                                                      (site-prefix site)))))
+                             (script (@ (src ,js-url)))))))
+             (call-with-output-file output-path
+               (lambda (port)
+                 (display (sxml->html-string sxml) port))))))
+
+(define-public (make-viewstl-generator site)
+  (lambda (kernel)
+    (define stl-files
+      (filter (lambda (path) (string-suffix? ".stl" path))
+              (kernel-output-files kernel)))
+    (map
+      (lambda (file) (make-viewstl-kernel file #:site site))
+      stl-files)))
 
 ; TODO https://github.com/pts/pdfsizeopt
