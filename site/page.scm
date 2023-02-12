@@ -480,7 +480,6 @@
                                       (else kids)))
                                   (process-sxml kids-2))
                                 (define (get-id kids-2)
-                                  (format #t "tag = ~a\n" (car kids-2))
                                   (define kids (cdr (process-sxml kids-2)))
                                   (define id
                                     (cond
@@ -488,10 +487,8 @@
                                       ((null? (car kids)) '())
                                       ((not (list? (car kids))) '())
                                       ((eq? (caar kids) '@)
-                                       (format #t "kids = ~a\n" (cdr (car kids)))
                                        (filter (lambda (pair) (eq? (car pair) 'id)) (cdr (car kids))))
                                       (else '())))
-                                  (format #t "id = ~a\n" id)
                                   (if (null? id)
                                     id
                                     (car (cdr (car id)))))
