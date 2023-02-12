@@ -675,19 +675,25 @@
 
 (define (page-tail/default site page)
   (define header
-    `(nav 
-       (a (@ (href ,(site-prefix/ site)))
-          (img (@ (src ,(site-prefix/ site "images/logo.svg"))
-                  (alt ,(site-description site)))))
-       ;;(h1 (@ (class "text-center pb-2"))
-       ;;          ,(site-description site))
-       (ul ,@(map
+    (let ((logo-path (site-logo site)))
+      `(nav 
+         (ul
+           (li (@ (class "nav-item"))
+               (a (@ (href ,(site-prefix/ site)))
+                  (picture
+                    ,(if (string-suffix? ".png" logo-path)
+                       `((source (@ (srcset ,(site-prefix/ site (replace-extension logo-path "webp")))
+                                    (type "image/webp"))))
+                       '())
+                    (img (@ (src ,(site-prefix/ site logo-path))
+                            (alt ,(site-description site)))))))
+           ,@(map
                (lambda (directory)
                  `(li (@ (class "nav-item"))
                       (a (@ (class "nav-link")
                             (href ,(site-prefix/ site (directory-url directory))))
                          ,(directory-name directory))))
-               (site-directories site)))))
+               (site-directories site))))))
   (define footer
     `((footer
         (div (@ (class "center"))

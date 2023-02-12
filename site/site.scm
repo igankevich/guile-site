@@ -11,6 +11,7 @@
   (author #:init-keyword #:author #:accessor site-author)
   (email #:init-keyword #:email #:accessor site-email)
   (year #:init-keyword #:year #:accessor site-year)
+  (logo #:init-keyword #:logo #:accessor site-logo #:init-value "images/logo.svg")
   (directories #:init-keyword #:directories #:accessor site-directories #:init-value '())
   (build-directory #:init-keyword #:build-directory #:accessor site-build-directory
                    #:init-value "build/rsync"))
