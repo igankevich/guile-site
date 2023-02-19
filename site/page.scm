@@ -550,116 +550,119 @@
 
 (define (page-head-common/default site page)
   (post-process-sxml 
-    `((meta (@ (charset "utf-8")))
-      (meta (@ (name "viewport")
-               (content "width=device-width, initial-scale=1, shrink-to-fit=no")))
-      (meta (@ (http-equiv "X-UA-Compatible") (content "IE=edge")))
-      (meta (@ (name "description") (content ,(page-abstract page))))
-      ;; PURL
-      (meta (@ (property "http://purl.org/dc/terms/title") (content ,(page-title page))))
-      (meta (@ (property "http://purl.org/dc/terms/creator") (content ,(page-author page))))
-      (meta (@ (property "http://purl.org/dc/terms/date")
-               (content ,(strftime %iso-date (page-date page)))))
-      (meta (@ (property "http://purl.org/dc/terms/license")
-               (content "Creative Commons Attribution-ShareAlike 4.0 International License")))
-      (meta (@ (property "http://purl.org/dc/terms/language") (content "ru")))
-      ;; CC
-      (meta (@ (property "http://creativecommons.org/ns#attributionName")
-               (content ,(page-author page))))
-      (meta (@ (property "http://creativecommons.org/ns#attributionURL")
-               (content ,(page-url page))))
-      (meta (@ (property "http://creativecommons.org/ns#license")
-               (content "Creative Commons Attribution-ShareAlike 4.0 International License")))
-      ;; Twitter
-      ;(meta (@ (property "twitter:title") (content ,(page-title page))))
-      ;(meta (@ (property "twitter:description") (content ,(page-abstract page))))
-      ;(meta (@ (property "twitter:site") (content "@igankevich")))
-      ;(meta (@ (property "twitter:creator") (content "@igankevich")))
-      ;; Open Graph
-      (meta (@ (property "og:title") (content ,(page-title page))))
-      (meta (@ (property "og:description") (content ,(page-abstract page))))
-      (meta (@ (property "og:url") (content ,(page-full-url site page))))
-      (meta (@ (property "og:site_name") (content ,(site-description site))))
-      ;; Image/video
-      ,@(let ((image (page-image page)))
-          (if image
-            `(;(meta (@ (property "twitter:image") (content ,image)))
-              (meta (@ (property "og:image") (content ,image))))
-            '()))
-      ,@(let ((video (page-video page)))
-          (if video
-            `(;(meta (@ (property "twitter:player:stream") (content ,video)))
-              (meta (@ (property "og:type") (content "video.other")))
-              (meta (@ (property "og:video") (content ,video)))
-              (meta (@ (property "og:video:url") (content ,video)))
-              (meta (@ (property "og:video:secure_url") (content ,video)))
-              )
-            '()))
-      ;; Custom meta tags
-      ,@(map
-          (lambda (pair)
-            `(meta (@ (property ,(car pair)) (content ,(cdr pair)))))
-          (page-meta page))
-      ;; Title
-      (title ,(page-title page))
-      ;; Favicons
-      ,@(map
-          (lambda (size)
-            (define rel
-              (cond
-                ((member size '("167x167" "180x180")) "apple-touch-icon")
-                (else "icon")))
-            `(link (@ (rel ,rel)
-                      (type "image/png")
-                      (sizes ,size)
-                      (href ,(site-prefix/ site "favicon" (string-append size ".png"))))))
-          (@@ (site kernels) %favicon-sizes))
-      (link (@ (rel "icon") (sizes "any") (type "image/svg+xml")
-               (href ,(site-prefix/ site "favicon/any.svg"))))
-      (link (@ (rel "icon") (type "image/x-icon")
-               (href ,(site-prefix/ site "favicon.ico"))))
-      ;; Misc
-      (link (@ (rel "license") (href "http://creativecommons.org/licenses/by-sa/4.0/")))
-      (link (@ (rel "canonical") (href ,(site-url site))))
-      ;; Feeds
-      (link (@ (href ,(string-append "/" %atom-feed-path)) (type "application/atom+xml")
-               (rel "alternate") (title ,(site-description site))))
-      (link (@ (href ,(string-append "/" %rss-feed-path)) (type "application/rss+xml")
-               (rel "alternate") (title ,(site-description site))))
-      (link (@ (href ,(string-append "/" %json-feed-path)) (type "application/json")
-               (rel "alternate") (title ,(site-description site))))
-      ;; preload fonts
-      ,@(if (page-preload-fonts? page)
-          (map
-            (lambda (path)
-              `(link (@ (rel "preload")
-                        (as "font")
-                        (crossorigin "anonymous")
-                        (href ,(site-prefix/ site path)))))
-            (page-fonts page))
-          '())
-      ;; CSS
-      ,@(begin
-          (for-each kernel-run (page-css page))
-          (append-map
-            (lambda (kernel)
-              (map (lambda (path)
-                     `(link (@ (rel "stylesheet")
-                               (href ,(site-prefix// site path)))))
-                   (kernel-output-files kernel)))
-            (page-css page)))
-      ;; JS
-      ,@(begin
-          (map
-            (lambda (x)
-              (cond
-                ((is-a? x <kernel>)
-                 (kernel-run x)
-                 (let ((path (car (kernel-output-files x))))
-                   `(script (@ (src ,(site-prefix// site path))))))
-                (else
-                  `(script (@ (src ,(site-prefix// site x)))))))
-            (page-js-head page))))
+    `(head
+       ((meta (@ (charset "utf-8")))
+        (meta (@ (name "viewport")
+                 (content "width=device-width, initial-scale=1, shrink-to-fit=no")))
+        (meta (@ (http-equiv "X-UA-Compatible") (content "IE=edge")))
+        (meta (@ (name "description") (content ,(page-abstract page))))
+        ;; PURL
+        (meta (@ (property "http://purl.org/dc/terms/title") (content ,(page-title page))))
+        (meta (@ (property "http://purl.org/dc/terms/creator") (content ,(page-author page))))
+        (meta (@ (property "http://purl.org/dc/terms/date")
+                 (content ,(strftime %iso-date (page-date page)))))
+        (meta (@ (property "http://purl.org/dc/terms/license")
+                 (content "Creative Commons Attribution-ShareAlike 4.0 International License")))
+        (meta (@ (property "http://purl.org/dc/terms/language") (content "ru")))
+        ;; CC
+        (meta (@ (property "http://creativecommons.org/ns#attributionName")
+                 (content ,(page-author page))))
+        (meta (@ (property "http://creativecommons.org/ns#attributionURL")
+                 (content ,(page-url page))))
+        (meta (@ (property "http://creativecommons.org/ns#license")
+                 (content "Creative Commons Attribution-ShareAlike 4.0 International License")))
+        ;; Twitter
+        ;(meta (@ (property "twitter:title") (content ,(page-title page))))
+        ;(meta (@ (property "twitter:description") (content ,(page-abstract page))))
+        ;(meta (@ (property "twitter:site") (content "@igankevich")))
+        ;(meta (@ (property "twitter:creator") (content "@igankevich")))
+        ;; Open Graph
+        (meta (@ (property "og:title") (content ,(page-title page))))
+        (meta (@ (property "og:description") (content ,(page-abstract page))))
+        (meta (@ (property "og:url") (content ,(page-full-url site page))))
+        (meta (@ (property "og:site_name") (content ,(site-description site))))
+        (meta (@ (property "og:type") (content "website")))
+        ;; Image/video
+        ,@(let ((image (page-image page)))
+            (if image
+              `(;(meta (@ (property "twitter:image") (content ,image)))
+                (meta (@ (property "og:image") (content ,image))))
+              '()))
+        ,@(let ((video (page-video page)))
+            (if video
+              `(;(meta (@ (property "twitter:player:stream") (content ,video)))
+                ;(meta (@ (property "og:type") (content "video.other")))
+                (meta (@ (property "og:video") (content ,video)))
+                (meta (@ (property "og:video:url") (content ,video)))
+                (meta (@ (property "og:video:secure_url") (content ,video))))
+              '()))
+        ;; Custom meta tags
+        ,@(map
+            (lambda (pair)
+              `(meta (@ (property ,(car pair)) (content ,(cdr pair)))))
+            (page-meta page))
+        ;; Title
+        (title ,(page-title page))
+        ;; Favicons
+        ,@(map
+            (lambda (size)
+              (define rel
+                (cond
+                  ((member size '("167x167" "180x180")) "apple-touch-icon")
+                  (else "icon")))
+              `(link (@ (rel ,rel)
+                        (type "image/png")
+                        (sizes ,size)
+                        (href ,(site-prefix/ site "favicon" (string-append size ".png"))))))
+            (@@ (site kernels) %favicon-sizes))
+        (link (@ (rel "icon") (sizes "any") (type "image/svg+xml")
+                 (href ,(site-prefix/ site "favicon/any.svg"))))
+        (link (@ (rel "icon") (type "image/x-icon")
+                 (href ,(site-prefix/ site "favicon/any.ico"))))
+        ;; Misc
+        (link (@ (rel "license") (href "http://creativecommons.org/licenses/by-sa/4.0/")))
+        (link (@ (rel "canonical") (href ,(page-full-url site page))))
+        ;; Feeds
+        ,@(if (page-feeds? page)
+            `((link (@ (href ,(string-append "/" %atom-feed-path)) (type "application/atom+xml")
+                       (rel "alternate") (title ,(site-description site))))
+              (link (@ (href ,(string-append "/" %rss-feed-path)) (type "application/rss+xml")
+                       (rel "alternate") (title ,(site-description site))))
+              (link (@ (href ,(string-append "/" %json-feed-path)) (type "application/json")
+                       (rel "alternate") (title ,(site-description site)))))
+            '())
+        ;; preload fonts
+        ,@(if (page-preload-fonts? page)
+            (map
+              (lambda (path)
+                `(link (@ (rel "preload")
+                          (as "font")
+                          (crossorigin "anonymous")
+                          (href ,(site-prefix/ site path)))))
+              (page-fonts page))
+            '())
+        ;; CSS
+        ,@(begin
+            (for-each kernel-run (page-css page))
+            (append-map
+              (lambda (kernel)
+                (map (lambda (path)
+                       `(link (@ (rel "stylesheet")
+                                 (href ,(site-prefix// site path)))))
+                     (kernel-output-files kernel)))
+              (page-css page)))
+        ;; JS
+        ,@(begin
+            (map
+              (lambda (x)
+                (cond
+                  ((is-a? x <kernel>)
+                   (kernel-run x)
+                   (let ((path (car (kernel-output-files x))))
+                     `(script (@ (src ,(site-prefix// site path))))))
+                  (else
+                    `(script (@ (src ,(site-prefix// site x)))))))
+              (page-js-head page)))))
     site
     page))
 
@@ -732,6 +735,7 @@
   (uuid #:init-keyword #:uuid #:accessor page-uuid)
   (foreign? #:init-keyword #:foreign? #:accessor page-foreign? #:init-value #f)
   (hidden? #:init-keyword #:hidden? #:accessor page-hidden? #:init-value #f)
+  (feeds? #:init-keyword #:feeds? #:accessor page-feeds? #:init-value #f)
   (index? #:init-keyword #:index? #:accessor page-index? #:init-value #t)
   (number #:init-keyword #:number #:accessor page-number #:init-value 0)
   (parent #:init-keyword #:parent #:accessor page-parent #:init-value #f)

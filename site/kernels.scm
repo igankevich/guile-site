@@ -114,6 +114,7 @@
     #:input-files `(,input-file)
     #:output-files `(,(string-append output-prefix "any.svg")
                       ,(string-append output-prefix "any.ico")
+                      ,(string-append (site-output-directory site) "/favicon.ico")
                       ,@(map (lambda (size) (string-append output-prefix size ".png"))
                         %favicon-sizes))
     #:proc (lambda (kernel)
@@ -121,6 +122,7 @@
              (define tmp-path (site-output-directory site ".favicon.png"))
              (define svg-path (first (kernel-output-files kernel)))
              (define ico-path (second (kernel-output-files kernel)))
+             (define ico-path-2 (third (kernel-output-files kernel)))
              (mkdir-p (dirname tmp-path))
              (system* "inkscape" "--without-gui"
                       (format #f "--export-png=~a" tmp-path)
@@ -146,7 +148,9 @@
                       "-gravity" "center"
                       "-extent" "256x256"
                       "-define" "icon:auto-resize=16,24,32,48,64,72,96,128,256"
-                      ico-path))))
+                      ico-path)
+             (system* "cp" ico-path ico-path-2)
+             )))
 
 (define* (make-inkscape-kernel input-file #:optional output-file #:key
                                (site #f)
@@ -509,7 +513,9 @@
 (define* (make-videos-kernels #:key
                               (site #f)
                               (pages-directory "src/notes")
-                              (videos-directory "src/videos"))
+                              (videos-directory "src/videos")
+                              (year #f))
+  (define suffix (if year (format #f "-~a" year) ""))
   `(,@(fold
         (lambda (path prev)
           (if (string-suffix? ".scm" path)
@@ -522,9 +528,10 @@
      ,@(map
          (lambda (page)
            (make-poster-kernel (page-title page)
-                               (format #f "~a/videos/~2,'0d-~a.png"
+                               (format #f "~a/videos/~2,'0d-~a~a.png"
                                        (site-output-directory site)
-                                       (page-number page) (page-name page))
+                                       (page-number page) (page-name page)
+                                       suffix)
                                #:input-files `(,(page-input-file page))))
          (all-pages pages-directory))))
 
