@@ -8,6 +8,7 @@
   #:use-module (site kernel)
   #:use-module (site site)
   #:use-module (site page)
+  #:use-module (site video)
   #:use-module (srfi srfi-1)
   #:use-module (haunt html)
   #:export (make-symlink-kernel
@@ -23,6 +24,7 @@
              make-scour-kernel
              make-poster-kernel
              make-videos-kernels
+             make-video-kernels
              make-xournalpp-kernel
              make-xournalpp-thumbnail-kernel
              make-pdf-thumbnail-kernel
@@ -515,6 +517,7 @@
                               (pages-directory "src/notes")
                               (videos-directory "src/videos")
                               (year #f))
+  (format (current-error-port) "WARNING: `make-videos-kernels` is deprecated. Please, use `make-video-kernels` instead.\n")
   (define suffix (if year (format #f "-~a" year) ""))
   `(,@(fold
         (lambda (path prev)
@@ -534,6 +537,19 @@
                                        suffix)
                                #:input-files `(,(page-input-file page))))
          (all-pages pages-directory))))
+
+(define* (make-video-kernels video #:key (site #f))
+  `(,@(map
+        (lambda (input-file output-file)
+          (make-symlink-kernel input-file (site-output-directory site output-file)))
+        (video-input-files video)
+        (video-output-files video))
+     ,(let ((poster-output-file (replace-extension (car (video-output-files video)) "png")))
+        (make-poster-kernel
+          (video-title video)
+          (site-output-directory site poster-output-file)
+          #:input-files (video-input-files video)))
+     ))
 
 (define* (make-xournalpp-kernel input-file #:optional output-file #:key (site #f))
   (if (and site (not output-file))

@@ -721,9 +721,10 @@
 
 (define-class <page> ()
   (input-files #:init-keyword #:input-files #:accessor page-input-files #:init-value '())
+  ;(output-file #:init-keyword #:output-file #:accessor page-output-file #:init-value #f)
   (name #:init-keyword #:name #:accessor page-name)
   (date #:init-keyword #:date #:accessor page-date)
-  (url #:init-keyword #:url #:accessor page-url #:init-value #f)
+  (urls #:init-keyword #:urls #:accessor page-urls #:init-value '())
   (image #:init-keyword #:image #:accessor page-image #:init-value #f)
   (video #:init-keyword #:video #:accessor page-video #:init-value #f)
   (meta #:init-keyword #:meta #:accessor page-meta #:init-value '())
@@ -761,6 +762,15 @@
 
 (define (page-field-ref ref name)
   (assoc-ref (page-fields ref) name))
+
+(define (page-url page)
+  (define urls (page-urls page))
+  (cond
+    ((null? urls) #f)
+    (else (car urls))))
+
+(define (page-add-urls page urls)
+  (set! (page-urls page) (append (page-urls page) urls)))
 
 (define (page-full-url site page)
   (string-append (site-url site) "/" (page-url page)))
@@ -804,13 +814,14 @@
       (let ((short-name (substring name 0 (- (string-length name)
                                              (string-length extension)))))
         (if (not (page-url page))
-          (set! (page-url page) (string-append subdir "/" short-name "/")))
+          (set! (page-urls page) `(,(string-append subdir "/" short-name "/"))))
         (set! (page-name page) short-name)
         (page-add-input-files page `(,input-file))))
     pages)
   pages)
 
 (define (all-pages subdir)
+  (format (current-error-port) "WARNING: all-pages is deprecated. Please, use `page-load` instead.\n")
   (define dir
     (if (string-prefix? "src/" subdir)
       subdir

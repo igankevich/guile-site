@@ -23,7 +23,7 @@
         (set! (page-author page) (page-author parent))
         (set! (page-image page) (page-image parent))
         (set! (page-uuid page) (format #f "~a-~a" (page-uuid parent) number))
-        (set! (page-url page) (format #f "~a~a/" (page-url parent) number))
+        (set! (page-urls page) `(,(format #f "~a~a/" (page-url parent) number)))
         (set! (page-number page) number)
         (set! (page-parent page) parent)
         page)

@@ -9,6 +9,7 @@
 (define-class <video> ()
   (name #:init-keyword #:name #:accessor video-name #:init-value #f)
   (id #:init-keyword #:id #:accessor video-id #:init-value #f)
+  (title #:init-keyword #:title #:accessor video-title #:init-value #f)
   (input-files #:init-keyword #:input-files #:accessor video-input-files #:init-value '())
   (output-files #:init-keyword #:output-files #:accessor video-output-files #:init-value '())
   (captions #:init-keyword #:captions #:accessor video-captions #:init-value '())

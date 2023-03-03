@@ -149,16 +149,20 @@
           (define index (format #f "src/~a/index.scm" name))
           (if (file-exists? index)
             (let ((dir (primitive-load index)))
-              (set! (directory-path dir) name)
-              (if (not (slot-bound? dir 'url))
-                (set! (directory-url dir) name))
-              (cons dir prev))
+              (if (is-a? dir <directory>)
+                (begin
+                  (set! (directory-path dir) name)
+                  (if (not (slot-bound? dir 'url))
+                    (set! (directory-url dir) name))
+                  (cons dir prev))
+                prev))
             prev))
         '()
         directories)
       (lambda (a b) (< (directory-number a) (directory-number b))))))
 
 (define (make-all-page-kernels site index-page)
+  (format (current-error-port) "WARNING: make-all-page-kernels is deprecated. Please, use `make-page-kernel` instead.\n")
   (define pages-and-kernels
     (fold
       (lambda (directory prev)
@@ -220,13 +224,14 @@
                procedures)
              #t)))
 
+(define (page-url->output-path site url)
+  (string-append
+    (site-output-directory site) "/"
+    (if (string-suffix? "/" url)
+      (string-append url "index.html")
+      url)))
+
 (define (make-page-kernel site page)
-  (define output-path
-    (string-append (site-output-directory site) "/"
-                   (let ((url (page-url page)))
-                     (if (string-suffix? "/" url)
-                       (string-append url "index.html")
-                       url))))
   (define sxml 
     (if (not (page-foreign? page))
       (page-sxml site page)
@@ -234,12 +239,20 @@
   (make <kernel>
     #:name "page"
     #:input-files (page-input-files page)
-    #:output-files `(,output-path)
+    #:output-files (map
+                     (lambda (url) (page-url->output-path site url))
+                     (page-urls page))
     #:proc (lambda (kernel)
              (define output-path (first (kernel-output-files kernel)))
              (mkdir-p (dirname output-path))
              (if (not (page-foreign? page))
                (page-write-sxml sxml site page output-path))
+             (for-each
+               (lambda (url)
+                 (define link-path (page-url->output-path site url))
+                 (mkdir-p (dirname link-path))
+                 (system* "ln" "-sfnr" output-path link-path))
+               (cdr (page-urls page)))
              #t)))
 
 (define (make-index-page-kernel site pages directory index-page)
