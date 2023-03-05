@@ -347,19 +347,27 @@
                                          section name section)))
                        `(a (@ (href ,url)) (code ,name)))))
         (image . ,(lambda (tag . kids)
-                    (let* ((path (list-ref kids 0))
+                    (let* ((x (list-ref kids 0))
+                           (path (cond
+                                   ((is-a? x <kernel>)
+                                    (kernel-run x)
+                                    (car (kernel-output-files x)))
+                                   (else x)))
                            (text (if (>= (length kids) 2) (list-ref kids 1) #f))
                            (url (if (>= (length kids) 3) (list-ref kids 2) #f))
-                           (webp (if (string-suffix? ".png" path)
+                           (webp-path (replace-extension path "webp"))
+                           (webp (if (file-exists? webp-path)
                                    `((source (@ (srcset ,(site-prefix/ site (replace-extension path "webp")))
                                                 (type "image/webp"))))
                                    '())))
-                      (page-add-input-files page `(,(string-append "src/" path)))
+                      (page-add-input-files page `(,(if (null? webp) path webp-path)))
                       (if (not text)
                         (set! text (site-prefix/ site path)))
                       (define picture
                         (if url
-                          `(a (@ (href ,(site-prefix/ site url)))
+                          `(a (@ (href ,(if (string-prefix? "http" url)
+                                          url
+                                          (site-prefix/ site url))))
                               (picture
                                 ,@webp
                                 (img (@ (src ,(site-prefix/ site path))

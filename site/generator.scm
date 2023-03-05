@@ -198,6 +198,18 @@
              (write-robots-txt site output-path)          
              #t)))
 
+(define (make-sitemap-kernel site pages)
+  (define output-path (string-append (site-output-directory site) "/" %sitemap-path))
+  (make <kernel>
+    #:name "sitemap"
+    #:input-files '()
+    #:output-files `(,output-path)
+    #:proc (lambda (kernel)
+             (define output-path (first (kernel-output-files kernel)))
+             (mkdir-p (dirname output-path))
+             (write-sitemap site pages output-path)
+             #t)))
+
 (define (make-feeds-kernel site pages)
   (define out (site-output-directory site))
   (define output-paths
@@ -232,10 +244,6 @@
       url)))
 
 (define (make-page-kernel site page)
-  (define sxml 
-    (if (not (page-foreign? page))
-      (page-sxml site page)
-      '()))
   (make <kernel>
     #:name "page"
     #:input-files (page-input-files page)
@@ -246,7 +254,7 @@
              (define output-path (first (kernel-output-files kernel)))
              (mkdir-p (dirname output-path))
              (if (not (page-foreign? page))
-               (page-write-sxml sxml site page output-path))
+               (page-write-sxml (page-sxml site page) site page output-path))
              (for-each
                (lambda (url)
                  (define link-path (page-url->output-path site url))

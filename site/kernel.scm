@@ -6,6 +6,7 @@
   #:use-module (ice-9 threads)
   #:use-module (oop goops)
   #:use-module (srfi srfi-1)
+  #:use-module ((srfi srfi-19) #:prefix srfi-19:)
   #:use-module (sxml simple)
   #:use-module (sxml transform)
   #:use-module (web uri))
@@ -32,7 +33,8 @@
   (define max-input-mtime
     (fold
       (lambda (file prev)
-        (define mtime (file->mtime file now))
+        (define status (stat file))
+        (define mtime (stat:mtime status))
         ;(format #t "input-file ~a mtime ~a\n" file mtime)
         (if (> mtime prev) mtime prev))
       0
@@ -100,33 +102,54 @@
       (list-ref args 1)
       #f)))
 
-(define* (kernels-process kernels #:optional (generators '()))
+(define* (kernels-process kernels #:optional (generators '())
+                          #:key (profile? #f))
   (define target (get-kernel-target))
+  (define (process-kernel kernel)
+    (catch #t
+      (lambda ()
+        (let ((ret (kernel-run kernel)))
+          (if (or (and (number? ret) (not (= ret 0))) (not ret))
+            (begin
+              ;; Delete output files that might have been generated.
+              (for-each
+                (lambda (file)
+                  (catch #t
+                    (lambda () (delete-file file))
+                    (lambda _ #t)))
+                (kernel-output-files kernel))
+              (format #t "error: ~a: ~a failed with exit code ~a\n"
+                      (kernel-name kernel) (kernel-output-files kernel) ret)))))
+      (lambda (key . parameters)
+        (format #t "error: ~a: ~a failed: ~a\n"
+                (kernel-name kernel) (kernel-output-files kernel)
+                (cons key parameters))))
+    ;(format #t "~a: ~a is up to date\n" (kernel-name kernel) (kernel-output-files kernel))
+    )
+  (define (profile name func)
+    (let* ((t0 (srfi-19:current-time srfi-19:time-monotonic))
+           (ret (func))
+           (t1 (srfi-19:current-time srfi-19:time-monotonic))
+           (dt (srfi-19:time-difference! t1 t0))
+           (dt-seconds (+ (srfi-19:time-second dt)
+                          (* (srfi-19:time-nanosecond dt) 1e-9))))
+      (format (current-error-port) "~a: ~,2fs\n" name (exact->inexact dt-seconds))
+      ret))
   (for-each
     (lambda (kernel)
-      (catch #t
-        (lambda ()
-          (let ((ret (kernel-run kernel)))
-            (if (or (and (number? ret) (not (= ret 0))) (not ret))
-              (begin
-                ;; Delete output files that might have been generated.
-                (for-each
-                  (lambda (file)
-                    (catch #t
-                      (lambda () (delete-file file))
-                      (lambda _ #t)))
-                  (kernel-output-files kernel))
-                (format #t "error: ~a: ~a failed with exit code ~a\n"
-                        (kernel-name kernel) (kernel-output-files kernel) ret)))))
-        (lambda (key . parameters)
-          (format #t "error: ~a: ~a failed: ~a\n"
-                  (kernel-name kernel) (kernel-output-files kernel)
-                  (cons key parameters))))
-      ;(format #t "~a: ~a is up to date\n" (kernel-name kernel) (kernel-output-files kernel))
-      )
+      (if profile?
+        (profile (string-append "kernel " (kernel-name kernel))
+                 (lambda () (process-kernel kernel)))
+        (process-kernel kernel)))
     (append-map
       (lambda (kernel)
-        (cons kernel (append-map (lambda (generator) (generator kernel)) generators)))
+        (cons kernel (append-map
+                       (lambda (generator)
+                         (if profile?
+                           (profile (string-append "generator " (kernel-name kernel))
+                                    (lambda () (generator kernel)))
+                           (generator kernel)))
+                       generators)))
       (filter
         (lambda (kernel)
           (or (and (not target) (not (kernel-target? kernel)))
