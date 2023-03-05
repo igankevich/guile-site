@@ -348,10 +348,11 @@
                        `(a (@ (href ,url)) (code ,name)))))
         (image . ,(lambda (tag . kids)
                     (let* ((x (list-ref kids 0))
+                           (site (if (>= (length kids) 4) (list-ref kids 3) #f))
                            (path (cond
                                    ((is-a? x <kernel>)
                                     (kernel-run x)
-                                    (car (kernel-output-files x)))
+                                    (remove-site-output-directory site (car (kernel-output-files x))))
                                    (else x)))
                            (text (if (>= (length kids) 2) (list-ref kids 1) #f))
                            (url (if (>= (length kids) 3) (list-ref kids 2) #f))

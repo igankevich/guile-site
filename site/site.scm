@@ -17,7 +17,13 @@
                    #:init-value "build/rsync"))
 
 (define (site-output-directory site . rest)
-  (string-join `(,(site-build-directory site) ,(site-prefix site) ,@rest) "/"))
+  (define prefix (site-prefix site))
+  (define build (site-build-directory site))
+  (define prefix-2
+    (if (string-prefix? "/" prefix)
+      (string-append build prefix)
+      (string-append build "/" prefix)))
+  (string-join `(,prefix-2 ,@rest) "/"))
 
 (define-method (site-email-rss (s <site>))
   (format #f "~a (~a)" (site-email s) (site-author s)))
@@ -56,7 +62,7 @@
        ,(basename path))
     "/"))
 
-(define (remove-site-output-directory path site)
+(define (remove-site-output-directory site path)
   (define prefix (string-append (site-output-directory site) "/"))
   (if (string-prefix? prefix path)
     (substring path (string-length prefix))
