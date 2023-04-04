@@ -491,16 +491,19 @@
         (scandir path (lambda (name) (not (string-prefix? "." name))))))
     directories))
 
+(define %make-poster-kernel-arguments
+  '("-size" "960x540"
+    "-font" "Ubuntu-Regular"
+    "-pointsize" "40"
+    "-background" "#2e3440"
+    "-fill" "#d8dee9"
+    "-gravity" "Center"
+    "-flatten"))
+
 (define* (make-poster-kernel title output-file
                              #:key
                              (input-files '())
-                             (arguments '("-size" "960x540"
-                                          "-font" "Ubuntu-Regular"
-                                          "-pointsize" "40"
-                                          "-background" "#2e3440"
-                                          "-fill" "#d8dee9"
-                                          "-gravity" "Center"
-                                          "-flatten")))
+                             (arguments %make-poster-kernel-arguments))
   (make <kernel>
     #:name "poster"
     #:input-files input-files
@@ -538,7 +541,8 @@
                                #:input-files `(,(page-input-file page))))
          (all-pages pages-directory))))
 
-(define* (make-video-kernels video #:key (site #f))
+(define* (make-video-kernels video #:key (site #f)
+                             (poster-more-options '()))
   `(,@(map
         (lambda (input-file output-file)
           (make-symlink-kernel input-file (site-output-directory site output-file)))
@@ -548,7 +552,8 @@
         (make-poster-kernel
           (video-title video)
           (site-output-directory site poster-output-file)
-          #:input-files (video-input-files video)))
+          #:input-files (video-input-files video)
+          #:arguments (append %make-poster-kernel-arguments poster-more-options)))
      ))
 
 (define* (make-xournalpp-kernel input-file #:optional output-file #:key (site #f))
